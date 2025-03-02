@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useStore, Product } from '@/lib/store';
@@ -10,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Sheet,
   SheetContent,
@@ -26,19 +27,71 @@ import {
 } from '@/components/ui/checkbox';
 
 const Products = () => {
-  const { state } = useStore();
+  const { dispatch } = useStore();
   const location = useLocation();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(state.products);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
   
-  // Extract unique categories
-  const categories = Array.from(
-    new Set(state.products.flatMap(product => product.categories))
-  ).sort();
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select(`
+          *,
+          product_features(*),
+          product_variants(*),
+          product_category_map(
+            category_id,
+            product_categories(name)
+          )
+        `);
+
+      if (productsError) throw productsError;
+
+      const products = productsData.map(product => ({
+        ...product,
+        features: product.product_features?.map((f: any) => f.feature) || [],
+        categories: product.product_category_map?.map((c: any) => c.product_categories.name) || [],
+        variants: product.product_variants || []
+      }));
+
+      const allCategories = Array.from(new Set(
+        products.flatMap(product => product.categories)
+      )).sort();
+
+      setCategories(allCategories);
+      setFilteredProducts(products);
+      
+      dispatch({
+        type: 'SET_PRODUCTS',
+        payload: products
+      });
+
+    } catch (err: any) {
+      console.error('Error fetching products:', err);
+      setError('Failed to load products. Please try again later.');
+      toast({
+        variant: "destructive",
+        title: "Error loading products",
+        description: err.message
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
   
-  // Parse URL for initial category filter
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const categoryFromUrl = params.get('category');
@@ -48,29 +101,28 @@ const Products = () => {
     }
   }, [location.search]);
   
-  // Update filtered products when filters change
   useEffect(() => {
-    let filtered = state.products;
-    
-    // Apply search term filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        product => 
-          product.title.toLowerCase().includes(term) || 
-          product.description.toLowerCase().includes(term)
-      );
+    if (!isLoading) {
+      let filtered = filteredProducts;
+      
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = filtered.filter(
+          product => 
+            product.title.toLowerCase().includes(term) || 
+            product.description.toLowerCase().includes(term)
+        );
+      }
+      
+      if (selectedCategories.length > 0) {
+        filtered = filtered.filter(product => 
+          product.categories.some(category => selectedCategories.includes(category))
+        );
+      }
+      
+      setFilteredProducts(filtered);
     }
-    
-    // Apply category filters
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter(product => 
-        product.categories.some(category => selectedCategories.includes(category))
-      );
-    }
-    
-    setFilteredProducts(filtered);
-  }, [searchTerm, selectedCategories, state.products]);
+  }, [searchTerm, selectedCategories]);
   
   const handleCategoryToggle = (category: string) => {
     setSelectedCategories(prev => {
@@ -95,6 +147,22 @@ const Products = () => {
     }
   };
   
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-1 py-8">
+          <div className="container px-4 mx-auto text-center">
+            <h2 className="text-2xl font-bold mb-4">Error Loading Products</h2>
+            <p className="text-muted-foreground mb-6">{error}</p>
+            <Button onClick={fetchProducts}>Try Again</Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -109,7 +177,6 @@ const Products = () => {
               </p>
             </div>
             
-            {/* Filters and Search */}
             <div className="flex flex-col lg:flex-row gap-4 mb-8">
               <div className="relative flex-1">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -121,6 +188,7 @@ const Products = () => {
                   className="pl-10"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  disabled={isLoading}
                 />
               </div>
               
@@ -199,7 +267,6 @@ const Products = () => {
             </div>
             
             <div className="flex flex-col lg:flex-row gap-8">
-              {/* Desktop Sidebar Filters */}
               <div className="hidden lg:block w-60 flex-shrink-0">
                 <div className="sticky top-24 space-y-6">
                   <div>
@@ -259,9 +326,13 @@ const Products = () => {
                 </div>
               </div>
               
-              {/* Products Grid */}
               <div className="flex-1">
-                {filteredProducts.length === 0 ? (
+                {isLoading ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin mb-4" />
+                    <p className="text-muted-foreground">Loading products...</p>
+                  </div>
+                ) : filteredProducts.length === 0 ? (
                   <div className="text-center py-12">
                     <h3 className="text-lg font-medium mb-2">No products found</h3>
                     <p className="text-muted-foreground mb-6">
