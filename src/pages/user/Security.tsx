@@ -2,11 +2,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import UserSidebar from '@/components/UserSidebar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Shield, AlertTriangle, Key, Lock } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2, Lock, EyeOff, Eye, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -16,43 +15,78 @@ const Security = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (newPassword !== confirmPassword) {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       toast({
         variant: "destructive",
-        title: "Passwords don't match",
-        description: "New password and confirmation must match"
+        title: "All fields are required",
       });
       return;
     }
     
-    setIsLoading(true);
+    if (newPassword !== confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Passwords don't match",
+        description: "New password and confirm password must match"
+      });
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      toast({
+        variant: "destructive",
+        title: "Password too short",
+        description: "Password must be at least 6 characters long"
+      });
+      return;
+    }
     
     try {
+      setIsLoading(true);
+      
+      // First check the current password by trying to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: currentPassword
+      });
+      
+      if (signInError) {
+        toast({
+          variant: "destructive",
+          title: "Incorrect current password",
+          description: "Please check your current password and try again"
+        });
+        return;
+      }
+      
+      // Update the password
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
       
-      if (error) throw error;
-      
-      toast({
-        title: "Password updated",
-        description: "Your password has been successfully changed"
-      });
+      if (error) {
+        throw error;
+      }
       
       // Clear the form
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       
+      toast({
+        title: "Password updated successfully",
+      });
+      
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Password update failed",
+        title: "Error updating password",
         description: error.message
       });
     } finally {
@@ -62,127 +96,121 @@ const Security = () => {
   
   return (
     <UserSidebar>
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center gap-2 mb-6">
-          <Shield className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">Security</h1>
-        </div>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">Security</h1>
         
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Change Password</CardTitle>
-              <CardDescription>Update your account password</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-primary" />
+                Change Password
+              </CardTitle>
+              <CardDescription>Update your password to secure your account</CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handlePasswordChange} className="space-y-4">
+            <form onSubmit={handlePasswordChange}>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="current-password">Current Password</Label>
-                  <Input 
-                    id="current-password" 
-                    type="password" 
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="new-password">New Password</Label>
-                  <Input 
-                    id="new-password" 
-                    type="password" 
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm New Password</Label>
-                  <Input 
-                    id="confirm-password" 
-                    type="password" 
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Updating..." : "Update Password"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-          
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2">
-                  <Key className="h-5 w-5 text-primary" />
-                  Two-Factor Authentication
-                </CardTitle>
-                <CardDescription>Add an extra layer of security</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Two-factor authentication adds an additional layer of security to your account by requiring more than just a password to sign in.
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Status:</span>
-                  <span className="text-sm text-destructive">Not Enabled</span>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full">
-                  Set Up 2FA
-                </Button>
-              </CardFooter>
-            </Card>
-            
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-primary" />
-                  Login Sessions
-                </CardTitle>
-                <CardDescription>Manage your active sessions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  View and manage devices where you're currently logged in.
-                </p>
-                <div className="border rounded-md p-3">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-sm font-medium">Current Session</p>
-                      <p className="text-xs text-muted-foreground">This device</p>
-                    </div>
-                    <Button variant="ghost" size="sm" className="text-destructive">Sign Out</Button>
+                  <label htmlFor="current-password" className="text-sm font-medium">
+                    Current Password
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="current-password"
+                      type={showPassword ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="new-password" className="text-sm font-medium">
+                    New Password
+                  </label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="confirm-password" className="text-sm font-medium">
+                    Confirm New Password
+                  </label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+                
+                {newPassword && newPassword.length < 6 && (
+                  <div className="flex items-center text-amber-500 text-sm">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Password must be at least 6 characters long
+                  </div>
+                )}
+                
+                {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                  <div className="flex items-center text-red-500 text-sm">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Passwords don't match
+                  </div>
+                )}
               </CardContent>
-            </Card>
-          </div>
+              
+              <CardFooter>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Updating Password
+                    </>
+                  ) : (
+                    "Update Password"
+                  )}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+                Account Deletion
+              </CardTitle>
+              <CardDescription>
+                Permanently delete your account and all associated data
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Once you delete your account, there is no going back. Please be certain.
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button variant="destructive">Delete Account</Button>
+            </CardFooter>
+          </Card>
         </div>
-        
-        <Card className="mt-6">
-          <CardHeader className="flex flex-row items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            <div>
-              <CardTitle>Danger Zone</CardTitle>
-              <CardDescription>Irreversible account actions</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              These actions are permanent and cannot be undone. Please proceed with caution.
-            </p>
-            <Button variant="destructive">Delete Account</Button>
-          </CardContent>
-        </Card>
-      </main>
+      </div>
     </UserSidebar>
   );
 };

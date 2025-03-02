@@ -1,32 +1,32 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import UserSidebar from '@/components/UserSidebar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, User, Camera, Mail, Upload } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Loader2, User as UserIcon, Mail, Camera } from 'lucide-react';
 
 const Profile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  const [editMode, setEditMode] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user?.id) {
-        setLoading(false);
+        setIsLoading(false);
         return;
       }
       
@@ -42,63 +42,59 @@ const Profile = () => {
         }
         
         setProfile(data);
-        setFirstName(data.first_name || '');
-        setLastName(data.last_name || '');
-        setEmail(data.email || user.email || '');
-        setAvatarUrl(data.avatar_url || '');
+        setFirstName(data?.first_name || '');
+        setLastName(data?.last_name || '');
+        setEmail(data?.email || user.email || '');
+        setAvatarUrl(data?.avatar_url || '');
         
       } catch (error) {
         console.error('Error loading profile:', error);
-        
-        // For development mode, set mock data
-        if (process.env.NODE_ENV === 'development') {
-          const mockProfile = {
-            id: user?.id,
-            first_name: '',
-            last_name: '',
-            email: user?.email,
-            avatar_url: ''
-          };
-          setProfile(mockProfile);
-          setFirstName(mockProfile.first_name);
-          setLastName(mockProfile.last_name);
-          setEmail(mockProfile.email || '');
-        }
+        toast({
+          variant: "destructive",
+          title: "Error loading profile",
+          description: "Failed to load your profile information"
+        });
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
     
     fetchProfile();
-  }, [user]);
+  }, [user, toast]);
   
-  const updateProfile = async () => {
+  const handleSaveProfile = async () => {
     if (!user?.id) return;
     
-    setLoading(true);
-    
     try {
-      const updates = {
-        id: user.id,
-        first_name: firstName,
-        last_name: lastName,
-        avatar_url: avatarUrl,
-        updated_at: new Date().toISOString()
-      };
+      setIsSaving(true);
       
       const { error } = await supabase
         .from('profiles')
-        .update(updates)
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          avatar_url: avatarUrl,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', user.id);
       
       if (error) throw error;
       
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully."
+      setProfile({
+        ...profile,
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        avatar_url: avatarUrl
       });
       
-      setEditMode(false);
+      setIsEditing(false);
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully"
+      });
       
     } catch (error: any) {
       toast({
@@ -107,59 +103,40 @@ const Profile = () => {
         description: error.message
       });
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
   
-  const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `${user.id}/${fileName}`;
+    
     try {
-      setUploading(true);
+      setIsSaving(true);
       
-      if (!event.target.files || event.target.files.length === 0) {
-        throw new Error('You must select an image to upload.');
-      }
-      
-      const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user?.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-      
-      // Check if avatars bucket exists, if not create it
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const avatarsBucketExists = buckets?.some(bucket => bucket.name === 'avatars');
-      
-      if (!avatarsBucketExists) {
-        await supabase.storage.createBucket('avatars', {
-          public: true,
-          fileSizeLimit: 1024 * 1024 * 2 // 2MB
-        });
-      }
-      
+      // Upload file to storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
       
-      if (uploadError) {
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
       
+      // Get public URL
       const { data } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
       
-      setAvatarUrl(data.publicUrl);
-      
-      // Update the profile with the new avatar URL
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: data.publicUrl })
-        .eq('id', user?.id);
-      
-      if (updateError) throw updateError;
+      if (data?.publicUrl) {
+        setAvatarUrl(data.publicUrl);
+      }
       
       toast({
-        title: "Avatar updated",
-        description: "Your profile picture has been updated."
+        title: "Avatar uploaded",
+        description: "Your avatar has been uploaded successfully"
       });
       
     } catch (error: any) {
@@ -169,26 +146,25 @@ const Profile = () => {
         description: error.message
       });
     } finally {
-      setUploading(false);
+      setIsSaving(false);
     }
   };
   
-  const getInitials = () => {
-    if (firstName && lastName) {
-      return `${firstName[0]}${lastName[0]}`.toUpperCase();
-    } else if (firstName) {
-      return firstName[0].toUpperCase();
-    } else if (email) {
-      return email[0].toUpperCase();
-    }
-    return 'U';
-  };
+  const userInitials = firstName && lastName 
+    ? `${firstName[0]}${lastName[0]}`.toUpperCase()
+    : user?.email 
+      ? user.email.substring(0, 2).toUpperCase() 
+      : 'U';
   
-  if (loading) {
+  if (isLoading) {
     return (
       <UserSidebar>
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+            <h2 className="text-xl font-semibold mb-2">Loading Profile</h2>
+            <p className="text-muted-foreground">Please wait while we load your information...</p>
+          </div>
         </div>
       </UserSidebar>
     );
@@ -196,127 +172,171 @@ const Profile = () => {
   
   return (
     <UserSidebar>
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center gap-2 mb-6">
-          <User className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">My Profile</h1>
-        </div>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">Profile</h1>
         
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card className="md:col-span-1">
+        <div className="grid gap-6">
+          <Card>
             <CardHeader>
-              <CardTitle>Profile Picture</CardTitle>
-              <CardDescription>Update your profile image</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <UserIcon className="h-5 w-5 text-primary" />
+                {isEditing ? "Edit Profile" : "Personal Information"}
+              </CardTitle>
+              <CardDescription>Manage your personal information and profile settings</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              <div className="relative mb-4">
-                <Avatar className="h-24 w-24 border-2 border-primary">
-                  <AvatarImage src={avatarUrl} />
-                  <AvatarFallback className="text-xl">{getInitials()}</AvatarFallback>
-                </Avatar>
-                <label 
-                  htmlFor="avatar-upload" 
-                  className="absolute bottom-0 right-0 p-1 bg-primary text-white rounded-full cursor-pointer"
-                >
-                  <Camera className="h-4 w-4" />
-                  <input 
-                    id="avatar-upload" 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={uploadAvatar}
-                    disabled={uploading}
-                  />
-                </label>
-              </div>
-              
-              <div className="text-center">
-                <p className="font-medium">{firstName} {lastName}</p>
-                <p className="text-sm text-muted-foreground">{email}</p>
-              </div>
-              
-              {uploading && (
-                <div className="mt-2 flex items-center">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  <span className="text-sm">Uploading...</span>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                <div className="relative">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={avatarUrl} />
+                    <AvatarFallback className="bg-primary text-white text-xl">
+                      {userInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  {isEditing && (
+                    <label 
+                      htmlFor="avatar-upload" 
+                      className="absolute bottom-0 right-0 p-1 bg-primary text-white rounded-full cursor-pointer hover:bg-primary/80 transition-colors"
+                    >
+                      <Camera className="h-5 w-5" />
+                      <input 
+                        id="avatar-upload" 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleAvatarUpload}
+                        disabled={isSaving}
+                      />
+                    </label>
+                  )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-              <CardDescription>Update your personal details</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                
+                <div className="flex-1 space-y-2 text-center sm:text-left">
+                  <h3 className="font-medium text-xl">
+                    {profile?.first_name || ''} {profile?.last_name || ''}
+                  </h3>
+                  <p className="text-muted-foreground flex items-center justify-center sm:justify-start gap-2">
+                    <Mail className="h-4 w-4" />
+                    {profile?.email || user?.email || 'No email set'}
+                  </p>
+                </div>
+              </div>
+              
+              {isEditing ? (
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="first-name">First Name</Label>
                     <Input 
                       id="first-name" 
-                      value={firstName}
+                      value={firstName} 
                       onChange={(e) => setFirstName(e.target.value)}
-                      disabled={!editMode}
+                      disabled={isSaving}
                     />
                   </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="last-name">Last Name</Label>
                     <Input 
                       id="last-name" 
-                      value={lastName}
+                      value={lastName} 
                       onChange={(e) => setLastName(e.target.value)}
-                      disabled={!editMode}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      value={email} 
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isSaving}
                     />
                   </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <div className="flex">
-                    <div className="relative flex-1">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                        id="email" 
-                        value={email}
-                        className="pl-10"
-                        disabled={true}
-                      />
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-sm font-medium block mb-1">First Name</span>
+                      <span>{profile?.first_name || 'Not set'}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium block mb-1">Last Name</span>
+                      <span>{profile?.last_name || 'Not set'}</span>
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Your email address is managed through your authentication provider and cannot be changed here.
-                  </p>
+                  
+                  <div>
+                    <span className="text-sm font-medium block mb-1">Email</span>
+                    <span>{profile?.email || user?.email || 'Not available'}</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
-            <CardFooter className="flex justify-end gap-3">
-              {editMode ? (
-                <>
-                  <Button variant="outline" onClick={() => setEditMode(false)}>
+            <CardFooter>
+              {isEditing ? (
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>
                     Cancel
                   </Button>
-                  <Button onClick={updateProfile} disabled={loading}>
-                    {loading ? (
+                  <Button onClick={handleSaveProfile} disabled={isSaving}>
+                    {isSaving ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving
                       </>
                     ) : (
-                      'Save Changes'
+                      "Save Changes"
                     )}
                   </Button>
-                </>
+                </div>
               ) : (
-                <Button onClick={() => setEditMode(true)}>
+                <Button onClick={() => setIsEditing(true)}>
                   Edit Profile
                 </Button>
               )}
             </CardFooter>
           </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Information</CardTitle>
+              <CardDescription>Information about your account status and membership</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <span className="text-sm font-medium block mb-1">Account Status</span>
+                <span className="text-green-500 flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-green-500 inline-block"></span>
+                  Active
+                </span>
+              </div>
+              
+              <div>
+                <span className="text-sm font-medium block mb-1">Member Since</span>
+                <span>
+                  {profile?.created_at 
+                    ? new Date(profile.created_at).toLocaleDateString() 
+                    : 'Not available'}
+                </span>
+              </div>
+              
+              <div>
+                <span className="text-sm font-medium block mb-1">Last Updated</span>
+                <span>
+                  {profile?.updated_at 
+                    ? new Date(profile.updated_at).toLocaleDateString() 
+                    : 'Not available'}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </main>
+      </div>
     </UserSidebar>
   );
 };

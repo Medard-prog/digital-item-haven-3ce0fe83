@@ -25,7 +25,7 @@ interface UserSidebarProps {
 
 const UserSidebar = ({ children }: UserSidebarProps) => {
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   
@@ -51,6 +51,11 @@ const UserSidebar = ({ children }: UserSidebarProps) => {
     { path: '/security', label: 'Security', icon: <Shield className="h-5 w-5" /> },
     { path: '/preferences', label: 'Preferences', icon: <Sliders className="h-5 w-5" /> },
   ];
+
+  // Add admin dashboard if user is admin
+  if (isAdmin) {
+    menuItems.unshift({ path: '/admin/dashboard', label: 'Admin', icon: <Shield className="h-5 w-5" /> });
+  }
   
   const isActive = (path: string) => {
     return location.pathname === path;

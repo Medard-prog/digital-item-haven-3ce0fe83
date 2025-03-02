@@ -3,41 +3,54 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAdmin, isLoading, refreshSession, user } = useAuth();
+  const { user, isLoading, refreshSession } = useAuth();
   const [localLoading, setLocalLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Introduce a timeout to stop waiting for isLoading if it takes too long
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    // Always refresh session when mounting an admin route
-    refreshSession();
-    
-    if (isLoading) {
-      timeoutId = setTimeout(() => {
-        console.log("AdminRoute - Still loading after 2s, refreshing session");
-        refreshSession(); // Try to refresh the session
-        
-        // Set another timeout if still not resolved
-        const secondTimeoutId = setTimeout(() => {
-          console.log("AdminRoute - Loading timeout reached");
+    const checkAdminStatus = async () => {
+      try {
+        if (!user?.id) {
+          console.log("AdminRoute - No user found");
+          setIsAdmin(false);
           setLocalLoading(false);
-        }, 2000); // Wait another 2 seconds after refresh attempt
-        
-        return () => {
-          if (secondTimeoutId) clearTimeout(secondTimeoutId);
-        };
-      }, 2000); // Wait initial 2 seconds
-    } else {
-      setLocalLoading(false);
-    }
-    
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
+          return;
+        }
+
+        console.log("AdminRoute - Checking admin status for user:", user.id);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching admin status:", error);
+          setIsAdmin(false);
+        } else {
+          console.log("AdminRoute - Admin status:", data?.is_admin);
+          setIsAdmin(!!data?.is_admin);
+        }
+      } catch (error) {
+        console.error("Error in admin check:", error);
+        setIsAdmin(false);
+      } finally {
+        setLocalLoading(false);
+      }
     };
-  }, [isLoading, refreshSession]);
+
+    if (!isLoading) {
+      checkAdminStatus();
+    }
+  }, [user, isLoading]);
+
+  // Always refresh session when mounting an admin route
+  useEffect(() => {
+    refreshSession();
+  }, [refreshSession]);
 
   // Add debug console log
   console.log("AdminRoute - isAdmin:", isAdmin, "isLoading:", isLoading, "localLoading:", localLoading, "user:", user ? "exists" : "null");
@@ -45,7 +58,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   // Development mode always gets admin access
   const isDevelopment = process.env.NODE_ENV === 'development';
   
-  if (localLoading && isLoading) {
+  if (localLoading || isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />

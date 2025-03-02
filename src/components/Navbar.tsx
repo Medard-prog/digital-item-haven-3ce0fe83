@@ -1,201 +1,188 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/lib/store';
-import { 
-  GanttChartSquare, 
-  ShoppingCart, 
-  Menu, 
-  X, 
-  User, 
-  LogOut, 
-  ShoppingBag,
-  Heart, 
-  BadgeHelp,
-  ChevronDown
-} from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import CartDrawer from './CartDrawer';
-import { useToast } from '@/hooks/use-toast';
+} from "@/components/ui/dropdown-menu"
+import {
+  LogIn,
+  LogOut,
+  Menu,
+  Moon,
+  Search,
+  Settings,
+  ShoppingBag,
+  Sun,
+  User,
+  UserPlus,
+  Shield
+} from 'lucide-react';
 
 const Navbar = () => {
+  const { user, signOut, isAdmin } = useAuth();
   const { state } = useStore();
-  const { user, isAdmin, signOut, refreshSession } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const navigate = useNavigate();
   const { toast } = useToast();
-  
-  useEffect(() => {
-    refreshSession();
-    console.log("Navbar - user:", user ? "exists" : "null", "isAdmin:", isAdmin);
-  }, [refreshSession]);
-  
-  const cartItemsCount = state.cart.items.reduce(
-    (total, item) => total + item.quantity, 
-    0
-  );
-  
-  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-  const closeMenu = () => setIsMenuOpen(false);
-  
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error signing out",
-        description: error.message,
-      });
-    }
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pathname = location.pathname;
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
   };
-  
+
   const userInitials = user?.email 
     ? user.email.substring(0, 2).toUpperCase() 
     : 'U';
-  
-  const userMenuItems = [
-    { href: "/dashboard", label: "Dashboard", icon: User },
-    { href: "/profile", label: "Profile", icon: User },
-    { href: "/purchases", label: "Purchases", icon: ShoppingBag },
-    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: GanttChartSquare }] : []),
-    { href: "#", label: "Sign out", onClick: handleSignOut, icon: LogOut },
+
+  // Update userMenuItems to include icons property
+  const userMenuItems = user ? [
+    { href: '/dashboard', label: 'Dashboard', icon: <User className="h-4 w-4 mr-2" /> },
+    { href: '/profile', label: 'Profile', icon: <Settings className="h-4 w-4 mr-2" /> },
+    { href: '/purchases', label: 'My Orders', icon: <ShoppingBag className="h-4 w-4 mr-2" /> },
+    { 
+      href: '#', 
+      label: 'Logout', 
+      icon: <LogOut className="h-4 w-4 mr-2" />,
+      onClick: async () => {
+        try {
+          await signOut();
+          toast({
+            title: "Logged out successfully"
+          });
+        } catch (error) {
+          toast({
+            variant: "destructive",
+            title: "Error logging out",
+            description: "Please try again"
+          });
+        }
+      }
+    }
+  ] : [
+    { href: '/login', label: 'Login', icon: <LogIn className="h-4 w-4 mr-2" /> },
+    { href: '/register', label: 'Sign Up', icon: <UserPlus className="h-4 w-4 mr-2" /> }
   ];
-  
+
   return (
-    <>
-      <header className="sticky top-0 z-40 bg-white/70 dark:bg-gray-900/70 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800">
-        <div className="container mx-auto px-4">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex">
-              <Link to="/" className="flex items-center space-x-2">
-                <img src="/logo-smc.png" alt="SMCInsider" className="h-9 w-auto" />
-                <span className="hidden sm:inline-block font-bold text-xl bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
-                  SMCInsider
-                </span>
-              </Link>
-              
-              <nav className="hidden md:flex ml-10 space-x-6">
-                <Link 
-                  to="/" 
-                  className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium relative px-1 py-2 group"
-                >
-                  Home
-                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform" />
-                </Link>
-                <Link 
-                  to="/products" 
-                  className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium relative px-1 py-2 group"
+    <nav className="bg-white dark:bg-gray-900 shadow">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center">
+            <Link to="/" className="flex-shrink-0">
+              <span className="font-bold text-xl text-gray-800 dark:text-white">
+                Trading<span>Resources</span>
+              </span>
+            </Link>
+            <div className="hidden md:block">
+              <div className="ml-10 flex items-baseline space-x-4">
+                <Link
+                  to="/products"
+                  className={`${
+                    pathname === '/products'
+                      ? 'text-primary font-medium dark:text-primary'
+                      : 'text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-primary'
+                  } px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200`}
                 >
                   Products
-                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform" />
                 </Link>
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium relative px-1 py-2 group flex items-center">
-                      Resources
-                      <ChevronDown className="ml-1 h-4 w-4" />
-                      <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="center" className="glass-card">
-                    <DropdownMenuItem>
-                      <Link to="/products?category=SMC" className="flex w-full">
-                        SMC Trading
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Link to="/products?category=ICT" className="flex w-full">
-                        ICT Methodology
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Link to="/products?category=Advanced" className="flex w-full">
-                        Advanced Strategies
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Link to="/products?category=Psychology" className="flex w-full">
-                        Trading Psychology
-                      </Link>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium relative px-1 py-2 group flex items-center">
-                      Support
-                      <ChevronDown className="ml-1 h-4 w-4" />
-                      <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="center" className="glass-card">
-                    <DropdownMenuItem>
-                      <a href="https://discord.gg/smcinsider" className="flex w-full items-center" target="_blank" rel="noopener noreferrer">
-                        <img src="/icons/discord.svg" alt="Discord" className="h-4 w-4 mr-2" />
-                        Discord Support
-                      </a>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <a href="https://t.me/smcinsider" className="flex w-full items-center" target="_blank" rel="noopener noreferrer">
-                        <img src="/icons/telegram.svg" alt="Telegram" className="h-4 w-4 mr-2" />
-                        Telegram Support
-                      </a>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </nav>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="relative" 
-                onClick={() => setIsCartOpen(true)}
-              >
-                <ShoppingCart className="h-5 w-5" />
-                {cartItemsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {cartItemsCount}
-                  </span>
+                {isAdmin && (
+                  <li>
+                    <Link
+                      to="/admin/dashboard"
+                      className={`${
+                        pathname.startsWith('/admin')
+                          ? 'text-primary font-medium dark:text-primary'
+                          : 'text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-primary'
+                      } transition-colors duration-200 flex items-center px-4 py-2`}
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Admin
+                    </Link>
+                  </li>
                 )}
-              </Button>
-              
+                <Link
+                  to="/about"
+                  className={`${
+                    pathname === '/about'
+                      ? 'text-primary font-medium dark:text-primary'
+                      : 'text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-primary'
+                  } px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200`}
+                >
+                  About
+                </Link>
+                <Link
+                  to="/contact"
+                  className={`${
+                    pathname === '/contact'
+                      ? 'text-primary font-medium dark:text-primary'
+                      : 'text-gray-700 hover:text-primary dark:text-gray-300 dark:hover:text-primary'
+                  } px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200`}
+                >
+                  Contact
+                </Link>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center">
+            <div className="hidden md:block">
+              <div className="ml-4 flex items-center md:ml-6">
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    className="block w-full pl-3 pr-10 py-2 border border-gray-300 dark:border-gray-700 rounded-md leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="ml-4 flex items-center md:ml-6">
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center gap-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.user_metadata?.avatar_url || ''} />
-                        <AvatarFallback className="bg-primary text-white">{userInitials}</AvatarFallback>
+                    <Button variant="ghost" className="relative w-8 h-8 rounded-full">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={user?.user_metadata?.avatar_url || ''} alt={user?.email} />
+                        <AvatarFallback>{userInitials}</AvatarFallback>
                       </Avatar>
-                      <span className="hidden sm:inline-block">Dashboard</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="glass-card w-56">
-                    <div className="flex items-center justify-start gap-2 p-2">
-                      <div className="flex flex-col space-y-1 leading-none">
-                        <p className="font-medium">{user.email}</p>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {user.email}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {isAdmin ? 'Administrator' : 'User'}
+                        </p>
                       </div>
-                    </div>
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {userMenuItems.map((item, index) => (
-                      <DropdownMenuItem key={index} asChild>
-                        <Link to={item.href} className="flex w-full">
-                          <item.icon className="mr-2 h-4 w-4" />
+                      <DropdownMenuItem key={index} onClick={item.onClick ? item.onClick : undefined} >
+                        <Link to={item.href} className="w-full flex items-center">
+                          {item.icon}
                           <span>{item.label}</span>
                         </Link>
                       </DropdownMenuItem>
@@ -203,186 +190,93 @@ const Navbar = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <div className="hidden md:flex space-x-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to="/login">Authenticate</Link>
-                  </Button>
-                </div>
+                <>
+                  <Link
+                    to="/login"
+                    className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                  >
+                    Sign Up
+                  </Link>
+                </>
               )}
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="md:hidden" 
-                onClick={toggleMenu}
-              >
-                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </Button>
             </div>
           </div>
-        </div>
-      </header>
-      
-      {isMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-30 bg-white dark:bg-gray-900 pt-16 animate-fade-in">
-          <nav className="container mx-auto px-4 py-6 flex flex-col space-y-4">
-            <Link 
-              to="/" 
-              className="text-lg font-medium p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
-              onClick={closeMenu}
-            >
-              Home
-            </Link>
-            <Link 
-              to="/products" 
-              className="text-lg font-medium p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
-              onClick={closeMenu}
-            >
-              Products
-            </Link>
-            
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Resources</p>
-              <div className="flex flex-col space-y-2">
-                <Link 
-                  to="/products?category=SMC" 
-                  className="pl-2 text-gray-700 dark:text-gray-300" 
-                  onClick={closeMenu}
-                >
-                  SMC Trading
-                </Link>
-                <Link 
-                  to="/products?category=ICT" 
-                  className="pl-2 text-gray-700 dark:text-gray-300" 
-                  onClick={closeMenu}
-                >
-                  ICT Methodology
-                </Link>
-                <Link 
-                  to="/products?category=Advanced" 
-                  className="pl-2 text-gray-700 dark:text-gray-300" 
-                  onClick={closeMenu}
-                >
-                  Advanced Strategies
-                </Link>
-                <Link 
-                  to="/products?category=Psychology" 
-                  className="pl-2 text-gray-700 dark:text-gray-300" 
-                  onClick={closeMenu}
-                >
-                  Trading Psychology
-                </Link>
-              </div>
-            </div>
-            
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Support (24/7)</p>
-              <div className="flex flex-col space-y-2">
-                <a 
-                  href="https://discord.gg/smcinsider" 
-                  className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  <img src="/icons/discord.svg" alt="Discord" className="h-4 w-4 mr-2" />
-                  Discord Support
-                </a>
-                <a 
-                  href="https://t.me/smcinsider" 
-                  className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  <img src="/icons/telegram.svg" alt="Telegram" className="h-4 w-4 mr-2" />
-                  Telegram Support
-                </a>
-              </div>
-            </div>
-            
-            {!user ? (
-              <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-800 flex flex-col space-y-2">
-                <Button asChild>
-                  <Link to="/login" onClick={closeMenu}>Authenticate</Link>
+          <div className="-mr-2 flex md:hidden">
+            <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Open main menu</span>
                 </Button>
-              </div>
-            ) : (
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Account</p>
-                <div className="flex flex-col space-y-2">
-                  <Link 
-                    to="/dashboard" 
-                    className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
-                    onClick={closeMenu}
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0">
+                <SheetHeader className="pl-6 pr-8">
+                  <SheetTitle>Menu</SheetTitle>
+                  <SheetDescription>
+                    Navigate the application
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="py-4">
+                  <Link
+                    to="/products"
+                    className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
                   >
-                    <User className="mr-2 h-4 w-4" />
-                    Dashboard
+                    Products
                   </Link>
-                  <Link 
-                    to="/profile" 
-                    className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
-                    onClick={closeMenu}
+                  <Link
+                    to="/about"
+                    className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
                   >
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
+                    About
                   </Link>
-                  <Link 
-                    to="/favorites" 
-                    className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
-                    onClick={closeMenu}
+                  <Link
+                    to="/contact"
+                    className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
                   >
-                    <Heart className="mr-2 h-4 w-4" />
-                    Favorites
+                    Contact
                   </Link>
+                  {user ? (
+                    <>
+                      {userMenuItems.map((item, index) => (
+                        <Link
+                          key={index}
+                          to={item.href}
+                          className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+                          onClick={item.onClick ? item.onClick : undefined}
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/login"
+                        className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+                      >
+                        Login
+                      </Link>
+                      <Link
+                        to="/register"
+                        className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+                      >
+                        Sign Up
+                      </Link>
+                    </>
+                  )}
                 </div>
-              </div>
-            )}
-            
-            {user && isAdmin && (
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Admin</p>
-                <div className="flex flex-col space-y-2">
-                  <Link 
-                    to="/admin" 
-                    className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
-                    onClick={closeMenu}
-                  >
-                    <GanttChartSquare className="mr-2 h-4 w-4" />
-                    Dashboard
-                  </Link>
-                  <Link 
-                    to="/admin/products" 
-                    className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
-                    onClick={closeMenu}
-                  >
-                    <ShoppingBag className="mr-2 h-4 w-4" />
-                    Manage Products
-                  </Link>
-                  <Link 
-                    to="/admin/orders" 
-                    className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
-                    onClick={closeMenu}
-                  >
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Manage Orders
-                  </Link>
-                </div>
-              </div>
-            )}
-            
-            {user && (
-              <div className="pt-4 mt-auto border-t border-gray-200 dark:border-gray-800">
-                <Button variant="outline" className="w-full" onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </Button>
-              </div>
-            )}
-          </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
-      )}
-      
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-    </>
+      </div>
+    </nav>
   );
 };
 

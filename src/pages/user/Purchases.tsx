@@ -1,340 +1,332 @@
 
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, BookOpen, ShoppingCart, Search, FileText, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import UserSidebar from '@/components/UserSidebar';
 import { useAuth } from '@/context/AuthContext';
-
-interface Purchase {
-  id: string;
-  title: string;
-  type: 'course' | 'material';
-  date: string;
-  price: number;
-}
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { 
+  Loader2, 
+  ShoppingBag, 
+  Download, 
+  ChevronRight, 
+  ChevronDown,
+  ExternalLink, 
+  Package 
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const Purchases = () => {
   const { user } = useAuth();
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const ordersPerPage = 5;
   
   useEffect(() => {
-    const fetchPurchases = async () => {
-      setIsLoading(true);
+    const fetchOrders = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
       
       try {
-        if (user?.id) {
-          console.log("Fetching purchases for user:", user.id);
-          const { data: ordersData, error: ordersError } = await supabase
-            .from('orders')
-            .select(`
-              *,
-              order_items (
-                *,
-                products (*)
-              )
-            `)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-          
-          if (ordersError) throw ordersError;
-          
-          // Transform the data
-          const purchasesData: Purchase[] = [];
-          
-          ordersData?.forEach(order => {
-            if (order.order_items && Array.isArray(order.order_items)) {
-              order.order_items.forEach(item => {
-                if (item.products) {
-                  purchasesData.push({
-                    id: item.id,
-                    title: item.products.title,
-                    type: item.products.title.includes('Course') ? 'course' : 'material',
-                    date: order.created_at,
-                    price: item.price
-                  });
-                }
-              });
-            }
-          });
-          
-          setPurchases(purchasesData);
-        } else {
-          // For development, add mock purchases
-          if (process.env.NODE_ENV === 'development') {
-            console.log("Development mode: setting mock purchases");
-            setPurchases([
-              {
-                id: 'mock-purchase-1',
-                title: 'SMC Trading Course Bundle',
-                type: 'course',
-                date: new Date().toISOString(),
-                price: 199.99
-              },
-              {
-                id: 'mock-purchase-2',
-                title: 'ICT Mentorship Program',
-                type: 'course',
-                date: new Date().toISOString(),
-                price: 149.99
-              },
-              {
-                id: 'mock-purchase-3',
-                title: 'Advanced Order Blocks',
-                type: 'material',
-                date: new Date().toISOString(),
-                price: 89.99
-              }
-            ]);
-          } else {
-            setPurchases([]);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching purchases:", error);
+        const { data, error, count } = await supabase
+          .from('orders')
+          .select('*, order_items(*)', { count: 'exact' })
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .range((currentPage - 1) * ordersPerPage, currentPage * ordersPerPage - 1);
         
-        // For development, add mock purchases
-        if (process.env.NODE_ENV === 'development') {
-          console.log("Development mode: setting mock purchases after error");
-          setPurchases([
-            {
-              id: 'mock-purchase-1',
-              title: 'SMC Trading Course Bundle',
-              type: 'course',
-              date: new Date().toISOString(),
-              price: 199.99
-            },
-            {
-              id: 'mock-purchase-2',
-              title: 'ICT Mentorship Program',
-              type: 'course',
-              date: new Date().toISOString(),
-              price: 149.99
-            }
-          ]);
-        } else {
-          setPurchases([]);
+        if (error) {
+          throw error;
         }
+        
+        setOrders(data || []);
+        
+        if (count) {
+          setTotalPages(Math.ceil(count / ordersPerPage));
+        }
+        
+      } catch (error) {
+        console.error('Error loading orders:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchPurchases();
-  }, [user]);
+    fetchOrders();
+  }, [user, currentPage]);
   
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      }
+  const toggleOrderExpand = (orderId: string) => {
+    if (expandedOrder === orderId) {
+      setExpandedOrder(null);
+    } else {
+      setExpandedOrder(orderId);
     }
   };
   
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5 }
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge className="bg-green-500">Completed</Badge>;
+      case 'processing':
+        return <Badge className="bg-blue-500">Processing</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive">Cancelled</Badge>;
+      default:
+        return <Badge variant="outline">Pending</Badge>;
     }
   };
-  
-  // Filter purchases by type
-  const courses = purchases.filter(p => p.type === 'course');
-  const materials = purchases.filter(p => p.type === 'material');
   
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-        <Navbar />
-        <div className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+      <UserSidebar>
+        <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="h-16 w-16 animate-spin mx-auto mb-6 text-primary" />
-            <h2 className="text-2xl font-bold mb-4">Loading Your Purchases</h2>
-            <p className="text-muted-foreground">Please wait while we fetch your purchase history...</p>
+            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+            <h2 className="text-xl font-semibold mb-2">Loading Orders</h2>
+            <p className="text-muted-foreground">Please wait while we load your purchase history...</p>
           </div>
         </div>
-        <Footer />
-      </div>
+      </UserSidebar>
     );
   }
   
-  const renderEmptyState = (type: string, icon: React.ReactNode) => (
-    <div className="text-center py-16">
-      {icon}
-      <h3 className="text-xl font-medium mb-2">No {type} purchased</h3>
-      <p className="text-muted-foreground mb-6">Your purchased {type} will appear here.</p>
-      <Button asChild>
-        <Link to="/products">Browse {type}</Link>
-      </Button>
-    </div>
-  );
-  
-  const renderPurchaseItem = (purchase: Purchase) => (
-    <motion.div
-      key={purchase.id}
-      variants={itemVariants}
-      className="bg-background rounded-lg border border-border p-4 shadow-sm"
-    >
-      <h3 className="font-medium text-lg mb-1">{purchase.title}</h3>
-      <div className="flex justify-between items-center mt-2">
-        <span className="text-sm text-muted-foreground">
-          {new Date(purchase.date).toLocaleDateString()}
-        </span>
-        <Badge className="bg-primary">{purchase.type === 'course' ? 'Course' : 'Material'}</Badge>
-      </div>
-      <div className="mt-4 flex justify-between items-center">
-        <span className="font-medium">${purchase.price.toFixed(2)}</span>
-        <Button size="sm">
-          <Download className="mr-2 h-4 w-4" /> Download
-        </Button>
-      </div>
-    </motion.div>
-  );
-  
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      <Navbar />
-      
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold font-display mb-2">Your Purchases</h1>
-          <p className="text-muted-foreground">Access your digital products and course materials</p>
-        </div>
+    <UserSidebar>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">My Purchases</h1>
         
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-8">
-            <TabsTrigger value="all">All Purchases</TabsTrigger>
-            <TabsTrigger value="courses">Courses</TabsTrigger>
-            <TabsTrigger value="materials">Materials</TabsTrigger>
-            <TabsTrigger value="order-history">Order History</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all">
-            {purchases.length > 0 ? (
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-              >
-                {purchases.map(purchase => renderPurchaseItem(purchase))}
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-                className="text-center py-16"
-              >
-                <div className="mb-6">
-                  <Download className="mx-auto h-20 w-20 text-muted-foreground opacity-30" />
+        <div className="mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-primary" />
+                Purchase History
+              </CardTitle>
+              <CardDescription>View and manage your orders</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {orders.length === 0 ? (
+                <div className="text-center py-12 space-y-4">
+                  <Package className="h-16 w-16 mx-auto text-muted-foreground/50" />
+                  <h3 className="text-lg font-medium">No purchases yet</h3>
+                  <p className="text-muted-foreground max-w-sm mx-auto">
+                    You haven't made any purchases yet. Browse our products to find something you like.
+                  </p>
+                  <Button className="mt-4" asChild>
+                    <a href="/products">Browse Products</a>
+                  </Button>
                 </div>
-                <h3 className="text-xl font-medium mb-3">No purchases yet</h3>
-                <p className="text-muted-foreground max-w-md mx-auto mb-6">
-                  You haven't purchased any digital trading resources yet. Browse our collection of premium SMC and ICT resources.
-                </p>
-                <Button asChild>
-                  <Link to="/products">
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Browse Products
-                  </Link>
-                </Button>
-              </motion.div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="courses">
-            {courses.length > 0 ? (
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-              >
-                {courses.map(course => renderPurchaseItem(course))}
-              </motion.div>
-            ) : (
-              renderEmptyState("courses", <BookOpen className="mx-auto h-20 w-20 text-muted-foreground opacity-30 mb-4" />)
-            )}
-          </TabsContent>
-          
-          <TabsContent value="materials">
-            {materials.length > 0 ? (
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-              >
-                {materials.map(material => renderPurchaseItem(material))}
-              </motion.div>
-            ) : (
-              renderEmptyState("materials", <FileText className="mx-auto h-20 w-20 text-muted-foreground opacity-30 mb-4" />)
-            )}
-          </TabsContent>
-          
-          <TabsContent value="order-history">
-            <Card>
-              <CardHeader>
-                <CardTitle>Order History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {purchases.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {purchases.map(purchase => (
-                        <TableRow key={purchase.id}>
-                          <TableCell>{new Date(purchase.date).toLocaleDateString()}</TableCell>
-                          <TableCell>{purchase.title}</TableCell>
-                          <TableCell>${purchase.price.toFixed(2)}</TableCell>
-                          <TableCell>
-                            <Badge className="bg-green-500">Completed</Badge>
-                          </TableCell>
+              ) : (
+                <>
+                  <div className="rounded-md border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[100px]">Order ID</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="text-center py-8">
-                    <Search className="mx-auto h-16 w-16 text-muted-foreground opacity-30 mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No order history</h3>
-                    <p className="text-muted-foreground mb-4">Your order history will be displayed here once you make a purchase.</p>
-                    <Button asChild>
-                      <Link to="/products">Start Shopping</Link>
-                    </Button>
+                      </TableHeader>
+                      <TableBody>
+                        {orders.map((order) => (
+                          <React.Fragment key={order.id}>
+                            <TableRow className="cursor-pointer hover:bg-muted/50" onClick={() => toggleOrderExpand(order.id)}>
+                              <TableCell className="font-medium">
+                                {order.id.substring(0, 8)}...
+                              </TableCell>
+                              <TableCell>
+                                {new Date(order.created_at).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>
+                                {getStatusBadge(order.status)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                ${parseFloat(order.total).toFixed(2)}
+                              </TableCell>
+                              <TableCell>
+                                {expandedOrder === order.id ? (
+                                  <ChevronDown className="h-5 w-5" />
+                                ) : (
+                                  <ChevronRight className="h-5 w-5" />
+                                )}
+                              </TableCell>
+                            </TableRow>
+                            
+                            <TableRow className={expandedOrder === order.id ? "" : "hidden"}>
+                              <TableCell colSpan={5} className="p-0">
+                                <Collapsible open={expandedOrder === order.id}>
+                                  <CollapsibleContent>
+                                    <div className="p-4 bg-muted/30">
+                                      <h4 className="font-medium mb-3">Order Details</h4>
+                                      
+                                      <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                          <span className="text-sm font-medium block mb-1">Order Date</span>
+                                          <span>{new Date(order.created_at).toLocaleString()}</span>
+                                        </div>
+                                        
+                                        <div>
+                                          <span className="text-sm font-medium block mb-1">Payment Method</span>
+                                          <span>{order.payment_method || 'Credit Card'}</span>
+                                        </div>
+                                        
+                                        <div>
+                                          <span className="text-sm font-medium block mb-1">Status</span>
+                                          <span>{getStatusBadge(order.status)}</span>
+                                        </div>
+                                        
+                                        <div>
+                                          <span className="text-sm font-medium block mb-1">Order ID</span>
+                                          <span className="font-mono text-sm">{order.id}</span>
+                                        </div>
+                                      </div>
+                                      
+                                      <h5 className="font-medium mb-2">Items</h5>
+                                      <div className="space-y-3 mb-4">
+                                        {order.order_items && order.order_items.map((item: any) => (
+                                          <div key={item.id} className="border rounded-md p-3 bg-card">
+                                            <div className="flex justify-between items-center">
+                                              <div>
+                                                <p className="font-medium">{item.product_name}</p>
+                                                {item.variant_name && (
+                                                  <p className="text-sm text-muted-foreground">
+                                                    Variant: {item.variant_name}
+                                                  </p>
+                                                )}
+                                                <p className="text-sm">
+                                                  Qty: {item.quantity} × ${parseFloat(item.price).toFixed(2)}
+                                                </p>
+                                              </div>
+                                              <p className="font-medium">
+                                                ${(item.quantity * parseFloat(item.price)).toFixed(2)}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      
+                                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-3 border-t">
+                                        <div className="space-y-1 mb-3 sm:mb-0">
+                                          <div className="flex justify-between">
+                                            <span className="text-sm text-muted-foreground">Subtotal:</span>
+                                            <span className="text-sm">${parseFloat(order.subtotal || '0').toFixed(2)}</span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-sm text-muted-foreground">Tax:</span>
+                                            <span className="text-sm">${parseFloat(order.taxes || '0').toFixed(2)}</span>
+                                          </div>
+                                          <div className="flex justify-between font-medium">
+                                            <span>Total:</span>
+                                            <span>${parseFloat(order.total).toFixed(2)}</span>
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex gap-2">
+                                          <Button variant="outline" size="sm" className="flex items-center">
+                                            <Download className="h-4 w-4 mr-2" />
+                                            Download
+                                          </Button>
+                                          <Button variant="outline" size="sm" className="flex items-center">
+                                            <ExternalLink className="h-4 w-4 mr-2" />
+                                            View Details
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </CollapsibleContent>
+                                </Collapsible>
+                              </TableCell>
+                            </TableRow>
+                          </React.Fragment>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
-      
-      <Footer />
-    </div>
+                  
+                  {totalPages > 1 && (
+                    <Pagination className="mt-6">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious 
+                            href="#" 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (currentPage > 1) setCurrentPage(currentPage - 1);
+                            }}
+                            className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                        
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink 
+                              href="#" 
+                              isActive={page === currentPage}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setCurrentPage(page);
+                              }}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        
+                        <PaginationItem>
+                          <PaginationNext 
+                            href="#" 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                            }}
+                            className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </UserSidebar>
   );
 };
-
-// We need to add the Badge and Table components
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export default Purchases;

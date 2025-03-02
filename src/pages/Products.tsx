@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useStore, Product } from '@/lib/store';
@@ -45,7 +46,7 @@ const Products = () => {
     try {
       console.log("Fetching products from database...");
       
-      // Simplified query to ensure we get products
+      // Fetch products from Supabase
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*');
@@ -58,9 +59,7 @@ const Products = () => {
       console.log("Products fetched:", productsData?.length || 0);
 
       if (!productsData || productsData.length === 0) {
-        console.log("No products found in database");
-        
-        // Use sample products from the store as fallback
+        console.log("No products found in database, using store products instead");
         const storeProducts = state.products || [];
         setProducts(storeProducts);
         setFilteredProducts(storeProducts);
@@ -87,6 +86,10 @@ const Products = () => {
       const { data: categoriesMapData } = await supabase
         .from('product_category_map')
         .select('*, product_categories(*)');
+
+      console.log("Features fetched:", featuresData?.length || 0);
+      console.log("Variants fetched:", variantsData?.length || 0);
+      console.log("Categories fetched:", categoriesMapData?.length || 0);
 
       // Map features and variants to their respective products
       const featuresMap = new Map();
@@ -142,7 +145,7 @@ const Products = () => {
         variants: variantsMap.get(product.id) || []
       }));
 
-      console.log("Formatted products:", formattedProducts);
+      console.log("Formatted products:", formattedProducts.length);
 
       // Get all unique categories
       const allCategories = Array.from(new Set(
@@ -153,7 +156,7 @@ const Products = () => {
       setProducts(formattedProducts);
       setFilteredProducts(formattedProducts);
       
-      // Update the global store with each product individually
+      // Update the global store with the products
       formattedProducts.forEach(product => {
         dispatch({
           type: 'ADD_PRODUCT',

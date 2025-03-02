@@ -1,106 +1,104 @@
 
 import React, { useState } from 'react';
 import UserSidebar from '@/components/UserSidebar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Settings, Bell, Moon, Languages } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Bell, Moon, Languages, Mail } from 'lucide-react';
 
 const Preferences = () => {
   const { toast } = useToast();
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [marketingEmails, setMarketingEmails] = useState(false);
+  const [productUpdates, setProductUpdates] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState('english');
   
   const handleSavePreferences = () => {
     toast({
       title: "Preferences saved",
-      description: "Your preferences have been updated successfully."
+      description: "Your preference changes have been saved successfully."
     });
   };
   
   return (
     <UserSidebar>
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex items-center gap-2 mb-6">
-          <Settings className="h-6 w-6 text-primary" />
-          <h1 className="text-3xl font-bold">Preferences</h1>
-        </div>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">Preferences</h1>
         
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5 text-primary" />
-                Notification Settings
+                Notification Preferences
               </CardTitle>
-              <CardDescription>Control when and how we contact you</CardDescription>
+              <CardDescription>Manage how you receive notifications</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="email-notifications">Email Notifications</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="email-notifications" className="font-medium">Email Notifications</Label>
                   <p className="text-sm text-muted-foreground">
-                    Receive emails about your account activity
+                    Receive email notifications about your account activity
                   </p>
                 </div>
-                <Switch 
-                  id="email-notifications" 
+                <Switch
+                  id="email-notifications"
                   checked={emailNotifications}
                   onCheckedChange={setEmailNotifications}
                 />
               </div>
               
               <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="marketing-emails">Marketing Emails</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="marketing-emails" className="font-medium">Marketing Emails</Label>
                   <p className="text-sm text-muted-foreground">
-                    Receive emails about new products and promotions
+                    Receive emails about promotions and new products
                   </p>
                 </div>
-                <Switch 
-                  id="marketing-emails" 
+                <Switch
+                  id="marketing-emails"
                   checked={marketingEmails}
                   onCheckedChange={setMarketingEmails}
                 />
               </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="product-updates" className="font-medium">Product Updates</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Receive notifications about new features and updates
+                  </p>
+                </div>
+                <Switch
+                  id="product-updates"
+                  checked={productUpdates}
+                  onCheckedChange={setProductUpdates}
+                />
+              </div>
             </CardContent>
+            <CardFooter>
+              <Button onClick={handleSavePreferences}>Save Notification Preferences</Button>
+            </CardFooter>
           </Card>
           
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-primary" />
-                Display Settings
+                <Languages className="h-5 w-5 text-primary" />
+                Language & Appearance
               </CardTitle>
-              <CardDescription>Customize your viewing experience</CardDescription>
+              <CardDescription>Customize how the application looks and behaves</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="dark-mode">Dark Mode</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Use dark theme across the application
-                  </p>
-                </div>
-                <Switch 
-                  id="dark-mode" 
-                  checked={darkMode}
-                  onCheckedChange={setDarkMode}
-                />
-              </div>
-              
               <div className="space-y-2">
-                <Label htmlFor="language-select" className="text-base">Language</Label>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Select your preferred language
-                </p>
+                <Label htmlFor="language-select">Language</Label>
                 <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger id="language-select" className="w-full">
+                  <SelectTrigger id="language-select">
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
                   <SelectContent>
@@ -108,19 +106,57 @@ const Preferences = () => {
                     <SelectItem value="spanish">Spanish</SelectItem>
                     <SelectItem value="french">French</SelectItem>
                     <SelectItem value="german">German</SelectItem>
-                    <SelectItem value="chinese">Chinese</SelectItem>
-                    <SelectItem value="japanese">Japanese</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="dark-mode" className="font-medium">Dark Mode</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Toggle between light and dark themes
+                  </p>
+                </div>
+                <Switch
+                  id="dark-mode"
+                  checked={darkMode}
+                  onCheckedChange={setDarkMode}
+                />
+              </div>
             </CardContent>
+            <CardFooter>
+              <Button onClick={handleSavePreferences}>Save Appearance Preferences</Button>
+            </CardFooter>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-primary" />
+                Email Digest Frequency
+              </CardTitle>
+              <CardDescription>Set how often you want to receive email digests</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Label htmlFor="digest-frequency">Digest Frequency</Label>
+              <Select defaultValue="weekly">
+                <SelectTrigger id="digest-frequency">
+                  <SelectValue placeholder="Select frequency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="never">Never</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleSavePreferences}>Save Email Preferences</Button>
+            </CardFooter>
           </Card>
         </div>
-        
-        <div className="mt-6 flex justify-end">
-          <Button onClick={handleSavePreferences}>Save Preferences</Button>
-        </div>
-      </main>
+      </div>
     </UserSidebar>
   );
 };
