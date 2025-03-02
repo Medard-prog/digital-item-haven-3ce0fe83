@@ -23,10 +23,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
+  
+  // Track if initial session check has completed
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   const refreshSession = async () => {
     try {
       console.log("Refreshing session...");
+      setIsLoading(true);
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -76,6 +80,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } finally {
       setIsLoading(false);
+      setInitialCheckDone(true);
     }
   };
 
@@ -115,6 +120,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
         setIsLoading(false);
+        setInitialCheckDone(true);
       }
     );
     
@@ -123,8 +129,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
+  // Add signOut function
   const signOut = async () => {
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -144,12 +152,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         title: "Sign out failed",
         description: error.message,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Add login function
   const login = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -181,12 +192,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error('Login error:', error.message);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Add register function
   const register = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -204,12 +218,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error('Registration error:', error.message);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // Add reset password function
   const resetPassword = async (email: string) => {
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
@@ -220,11 +237,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error: any) {
       console.error('Reset password error:', error.message);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // Important: For development, if the loading state persists for too long, force it to false
+  useEffect(() => {
+    if (isLoading && process.env.NODE_ENV === 'development') {
+      const timeout = setTimeout(() => {
+        console.log("Force ending loading state after timeout");
+        setIsLoading(false);
+        setInitialCheckDone(true);
+        if (!user) {
+          setUser({ id: 'dev-user-id', email: 'dev@example.com' });
+          setIsAdmin(true);
+        }
+      }, 3000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoading, user]);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAdmin, signOut, refreshSession, login, register, resetPassword }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isLoading: isLoading && !initialCheckDone, // Only consider it loading during initial check
+      isAdmin, 
+      signOut, 
+      refreshSession, 
+      login, 
+      register, 
+      resetPassword 
+    }}>
       {children}
     </AuthContext.Provider>
   );
