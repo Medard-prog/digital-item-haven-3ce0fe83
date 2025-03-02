@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { 
@@ -25,6 +25,7 @@ interface UserSidebarProps {
 
 const UserSidebar = ({ children }: UserSidebarProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, signOut, isAdmin } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -35,6 +36,7 @@ const UserSidebar = ({ children }: UserSidebarProps) => {
       toast({
         title: "Signed out successfully",
       });
+      navigate('/');
     } catch (error) {
       toast({
         variant: "destructive",

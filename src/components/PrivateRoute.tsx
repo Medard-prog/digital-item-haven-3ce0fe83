@@ -17,19 +17,9 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     
     if (isLoading) {
       timeoutId = setTimeout(() => {
-        console.log("PrivateRoute - Still loading after 2s, refreshing session");
-        refreshSession(); // Try to refresh the session
-        
-        // Set another timeout if still not resolved
-        const secondTimeoutId = setTimeout(() => {
-          console.log("PrivateRoute - Loading timeout reached");
-          setLocalLoading(false);
-        }, 2000); // Wait another 2 seconds after refresh attempt
-        
-        return () => {
-          if (secondTimeoutId) clearTimeout(secondTimeoutId);
-        };
-      }, 2000); // Wait initial 2 seconds
+        console.log("PrivateRoute - Loading timeout reached, forcing completion");
+        setLocalLoading(false);
+      }, 2000); // 2 second timeout
     } else {
       setLocalLoading(false);
     }
@@ -39,7 +29,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     };
   }, [isLoading, refreshSession]);
 
-  // Add debug console log
+  // Debug console log
   console.log("PrivateRoute - user:", user ? "exists" : "null", "isLoading:", isLoading, "localLoading:", localLoading);
 
   // Development mode always gets access

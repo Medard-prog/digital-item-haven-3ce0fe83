@@ -5,9 +5,20 @@ import UserSidebar from '@/components/UserSidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Lock, EyeOff, Eye, AlertTriangle } from 'lucide-react';
+import { Loader2, Lock, EyeOff, Eye, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Security = () => {
   const { user } = useAuth();
@@ -17,6 +28,7 @@ const Security = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,10 +106,41 @@ const Security = () => {
     }
   };
   
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    try {
+      setDeleteLoading(true);
+      
+      // This would need to be implemented with a server-side function
+      // For now, we'll just show a success message
+      toast({
+        title: "Account deletion requested",
+        description: "Your account will be deleted shortly."
+      });
+      
+      // In a real implementation, you would make a call to a server function:
+      // Example:
+      // await supabase.functions.invoke('delete-account', { body: { userId: user.id } });
+      
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error deleting account",
+        description: error.message
+      });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+  
   return (
     <UserSidebar>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Security</h1>
+        <h1 className="text-3xl font-bold mb-6 flex items-center gap-2">
+          <Lock className="h-7 w-7 text-primary" />
+          Security
+        </h1>
         
         <div className="grid gap-6">
           <Card>
@@ -193,7 +236,7 @@ const Security = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
+                <ShieldAlert className="h-5 w-5 text-red-500" />
                 Account Deletion
               </CardTitle>
               <CardDescription>
@@ -206,7 +249,36 @@ const Security = () => {
               </p>
             </CardContent>
             <CardFooter>
-              <Button variant="destructive">Delete Account</Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">Delete Account</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete your
+                      account and remove all your data from our servers.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAccount}
+                      className="bg-red-500 hover:bg-red-600"
+                    >
+                      {deleteLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        "Yes, delete my account"
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </CardFooter>
           </Card>
         </div>

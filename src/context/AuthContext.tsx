@@ -34,11 +34,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
+        console.error("Session error:", error.message);
         throw error;
       }
       
       if (session?.user) {
-        console.log("Session found, user is logged in", session.user);
+        console.log("Session found, user is logged in", session.user.email);
         setUser(session.user);
         
         // Fetch user profile to determine admin status
@@ -57,19 +58,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       } else {
         console.log("No session found, user is not logged in");
-        // For development, create a fake user and admin status
+        setUser(null);
+        setIsAdmin(false);
+        
+        // For development mode, create a mock user
         if (process.env.NODE_ENV === 'development') {
           console.log("Development mode: setting mock user");
           setUser({ id: 'dev-user-id', email: 'dev@example.com' });
           setIsAdmin(true);
-        } else {
-          setUser(null);
-          setIsAdmin(false);
         }
       }
     } catch (error: any) {
       console.error('Error refreshing session:', error.message);
-      // For development, create a fake user and admin status
+      
+      // For development mode, set a mock user
       if (process.env.NODE_ENV === 'development') {
         console.log("Development mode: setting mock user after error");
         setUser({ id: 'dev-user-id', email: 'dev@example.com' });
@@ -103,7 +105,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       toast({
         title: "Signed out successfully",
-        description: "You have been signed out",
       });
       
       // Force a page reload to clear any cached state
@@ -134,7 +135,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw error;
       }
 
-      // Set user and check admin status
       if (data.user) {
         setUser(data.user);
         
@@ -149,7 +149,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('Error fetching profile:', profileError);
           setIsAdmin(false);
         } else {
-          console.log("Profile data:", profileData);
           setIsAdmin(profileData?.is_admin || false);
         }
       }
@@ -174,7 +173,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw error;
       }
 
-      // In some cases Supabase might automatically sign in the user after registration
       if (data.user) {
         setUser(data.user);
         setIsAdmin(false); // New users are not admins by default
@@ -238,17 +236,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           } else {
             setIsAdmin(profileData?.is_admin || false);
           }
+        } else if (process.env.NODE_ENV === 'development') {
+          console.log("Development mode: setting mock user on auth change");
+          setUser({ id: 'dev-user-id', email: 'dev@example.com' });
+          setIsAdmin(true);
         } else {
-          // For development, create a fake user and admin status
-          if (process.env.NODE_ENV === 'development') {
-            console.log("Development mode: setting mock user on auth change");
-            setUser({ id: 'dev-user-id', email: 'dev@example.com' });
-            setIsAdmin(true);
-          } else {
-            setUser(null);
-            setIsAdmin(false);
-          }
+          setUser(null);
+          setIsAdmin(false);
         }
+        
         setIsLoading(false);
         setInitialCheckDone(true);
       }
@@ -259,27 +255,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  // Important: For development, if the loading state persists for too long, force it to false
+  // Debug timeout: If loading state persists for too long, force it to complete
   useEffect(() => {
-    if (isLoading && process.env.NODE_ENV === 'development') {
-      const timeout = setTimeout(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (isLoading) {
+      timeoutId = setTimeout(() => {
         console.log("Force ending loading state after timeout");
         setIsLoading(false);
         setInitialCheckDone(true);
-        if (!user) {
+        
+        // In development mode, set a mock user
+        if (process.env.NODE_ENV === 'development' && !user) {
           setUser({ id: 'dev-user-id', email: 'dev@example.com' });
           setIsAdmin(true);
         }
-      }, 3000);
-      
-      return () => clearTimeout(timeout);
+      }, 3000); // 3 second timeout
     }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [isLoading, user]);
 
   return (
     <AuthContext.Provider value={{ 
       user, 
-      isLoading: isLoading && !initialCheckDone, // Only consider it loading during initial check
+      isLoading: isLoading && !initialCheckDone,
       isAdmin, 
       signOut, 
       refreshSession, 

@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useStore, Product } from '@/lib/store';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
@@ -10,7 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Search, SlidersHorizontal, X, Loader2 } from 'lucide-react';
+import { 
+  Search, 
+  SlidersHorizontal, 
+  X, 
+  Loader2, 
+  Filter, 
+  ShoppingCart,
+  AlertTriangle 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,12 +30,23 @@ import {
   SheetTrigger,
   SheetClose,
 } from '@/components/ui/sheet';
-import { 
-  Checkbox 
-} from '@/components/ui/checkbox';
+import { Checkbox } from '@/components/ui/checkbox';
+
+// Define Product type
+interface Product {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  image?: string;
+  featured?: boolean;
+  categories?: string[];
+  features?: string[];
+  variants?: Array<{id: string; name: string; price: number}>;
+}
 
 const Products = () => {
-  const { state, dispatch } = useStore();
+  const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,14 +57,16 @@ const Products = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
+  const [retryCount, setRetryCount] = useState(0);
   
+  // Fetch products from Supabase
   const fetchProducts = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      console.log("Fetching products from database...");
+      console.log(`Fetching products from database... (attempt ${retryCount + 1})`);
       
-      // Fetch products from Supabase
+      // Fetch products
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*');
@@ -56,20 +76,12 @@ const Products = () => {
         throw productsError;
       }
 
-      console.log("Products fetched:", productsData?.length || 0);
+      console.log(`Products fetched: ${productsData?.length || 0}`);
 
       if (!productsData || productsData.length === 0) {
-        console.log("No products found in database, using store products instead");
-        const storeProducts = state.products || [];
-        setProducts(storeProducts);
-        setFilteredProducts(storeProducts);
-        
-        // Extract categories from store products
-        const allCategories = Array.from(new Set(
-          storeProducts.flatMap(product => product.categories || [])
-        )).sort();
-        
-        setCategories(allCategories);
+        setProducts([]);
+        setFilteredProducts([]);
+        setCategories([]);
         setIsLoading(false);
         return;
       }
@@ -87,9 +99,9 @@ const Products = () => {
         .from('product_category_map')
         .select('*, product_categories(*)');
 
-      console.log("Features fetched:", featuresData?.length || 0);
-      console.log("Variants fetched:", variantsData?.length || 0);
-      console.log("Categories fetched:", categoriesMapData?.length || 0);
+      console.log(`Features fetched: ${featuresData?.length || 0}`);
+      console.log(`Variants fetched: ${variantsData?.length || 0}`);
+      console.log(`Categories fetched: ${categoriesMapData?.length || 0}`);
 
       // Map features and variants to their respective products
       const featuresMap = new Map();
@@ -145,7 +157,7 @@ const Products = () => {
         variants: variantsMap.get(product.id) || []
       }));
 
-      console.log("Formatted products:", formattedProducts.length);
+      console.log(`Formatted products: ${formattedProducts.length}`);
 
       // Get all unique categories
       const allCategories = Array.from(new Set(
@@ -155,36 +167,35 @@ const Products = () => {
       setCategories(allCategories);
       setProducts(formattedProducts);
       setFilteredProducts(formattedProducts);
-      
-      // Update the global store with the products
-      formattedProducts.forEach(product => {
-        dispatch({
-          type: 'ADD_PRODUCT',
-          payload: product
-        });
-      });
 
     } catch (err: any) {
       console.error('Error fetching products:', err);
-      setError('Failed to load products. Please try again later.');
+      setError('Failed to load products. Please try again.');
       toast({
         variant: "destructive",
         title: "Error loading products",
         description: err.message
       });
       
-      // Fallback to store products
-      setProducts(state.products);
-      setFilteredProducts(state.products);
+      // If we failed, but have a reasonable retry count, try again
+      if (retryCount < 3) {
+        console.log(`Retrying in 1 second... (${retryCount + 1}/3)`);
+        setTimeout(() => {
+          setRetryCount(retryCount + 1);
+          fetchProducts();
+        }, 1000);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Initial fetch and when retry count changes
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [retryCount]);
   
+  // Check for category in URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const categoryFromUrl = params.get('category');
@@ -194,6 +205,7 @@ const Products = () => {
     }
   }, [location.search]);
   
+  // Filter products based on search term and selected categories
   useEffect(() => {
     if (!isLoading) {
       let filtered = [...products];
@@ -239,16 +251,24 @@ const Products = () => {
       transition: { staggerChildren: 0.1 }
     }
   };
+
+  const handleProductClick = (productId: string) => {
+    navigate(`/product/${productId}`);
+  };
   
-  if (error) {
+  if (error && retryCount >= 3) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-1 py-8">
           <div className="container px-4 mx-auto text-center">
+            <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-4">Error Loading Products</h2>
             <p className="text-muted-foreground mb-6">{error}</p>
-            <Button onClick={fetchProducts}>Try Again</Button>
+            <Button onClick={() => {
+              setRetryCount(0);
+              fetchProducts();
+            }}>Try Again</Button>
           </div>
         </main>
         <Footer />
@@ -266,7 +286,7 @@ const Products = () => {
             <div className="mb-8">
               <h1 className="text-3xl font-bold mb-3">Trading Resources</h1>
               <p className="text-muted-foreground max-w-3xl">
-                Browse our complete collection of premium SMC and ICT trading guides, resources, and educational materials.
+                Browse our complete collection of premium trading guides, resources, and educational materials.
               </p>
             </div>
             
@@ -289,7 +309,7 @@ const Products = () => {
                 <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
                   <SheetTrigger asChild>
                     <Button variant="outline" className="lg:hidden flex items-center gap-2">
-                      <SlidersHorizontal className="h-4 w-4" />
+                      <Filter className="h-4 w-4" />
                       Filters
                       {selectedCategories.length > 0 && (
                         <Badge variant="secondary" className="ml-1">
@@ -360,6 +380,7 @@ const Products = () => {
             </div>
             
             <div className="flex flex-col lg:flex-row gap-8">
+              {/* Desktop Sidebar Filters */}
               <div className="hidden lg:block w-60 flex-shrink-0">
                 <div className="sticky top-24 space-y-6">
                   <div>
@@ -389,6 +410,10 @@ const Products = () => {
                           </Label>
                         </div>
                       ))}
+                      
+                      {categories.length === 0 && !isLoading && (
+                        <p className="text-sm text-muted-foreground">No categories available</p>
+                      )}
                     </div>
                   </div>
                   
@@ -419,6 +444,7 @@ const Products = () => {
                 </div>
               </div>
               
+              {/* Product Grid */}
               <div className="flex-1">
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center py-12">
@@ -427,11 +453,16 @@ const Products = () => {
                   </div>
                 ) : filteredProducts.length === 0 ? (
                   <div className="text-center py-12">
+                    <ShoppingCart className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">No products found</h3>
                     <p className="text-muted-foreground mb-6">
-                      Try adjusting your search or filter criteria
+                      {products.length === 0 
+                        ? "There are no products in the database yet."
+                        : "Try adjusting your search or filter criteria"}
                     </p>
-                    <Button onClick={clearFilters}>Clear all filters</Button>
+                    {selectedCategories.length > 0 && (
+                      <Button onClick={clearFilters}>Clear all filters</Button>
+                    )}
                   </div>
                 ) : (
                   <motion.div 

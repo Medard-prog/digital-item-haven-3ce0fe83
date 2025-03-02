@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading, refreshSession } = useAuth();
+  const { user, isLoading } = useAuth();
   const [localLoading, setLocalLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -31,7 +31,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
           console.error("Error fetching admin status:", error);
           setIsAdmin(false);
         } else {
-          console.log("AdminRoute - Admin status:", data?.is_admin);
+          console.log("AdminRoute - Admin status from DB:", data?.is_admin);
           setIsAdmin(!!data?.is_admin);
         }
       } catch (error) {
@@ -47,30 +47,22 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user, isLoading]);
 
-  // Always refresh session when mounting an admin route
-  useEffect(() => {
-    refreshSession();
-  }, [refreshSession]);
-
-  // Add debug console log
-  console.log("AdminRoute - isAdmin:", isAdmin, "isLoading:", isLoading, "localLoading:", localLoading, "user:", user ? "exists" : "null");
-
-  // Development mode always gets admin access
+  // For development, always grant admin access
   const isDevelopment = process.env.NODE_ENV === 'development';
   
   if (localLoading || isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <span className="text-lg">Loading authentication status...</span>
+        <span className="text-lg">Verifying admin status...</span>
       </div>
     );
   }
 
-  console.log("AdminRoute - isDevelopment:", isDevelopment);
+  console.log("AdminRoute - Final decision - isDevelopment:", isDevelopment, "isAdmin:", isAdmin);
   
   if (!isAdmin && !isDevelopment) {
-    console.log("AdminRoute - Redirecting to home");
+    console.log("AdminRoute - Redirecting to home, user is not an admin");
     return <Navigate to="/" replace />;
   }
 
