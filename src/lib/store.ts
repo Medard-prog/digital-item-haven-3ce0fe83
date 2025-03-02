@@ -10,12 +10,15 @@ export type Product = {
   image?: string;
   featured?: boolean;
   features?: string[];
+  categories?: string[];
+  variants?: Array<{id: string, name: string, price?: number}>;
 };
 
 export type CartItem = {
   id: string;
   quantity: number;
   product?: Product;
+  variantId?: string;
 };
 
 type State = {
@@ -48,6 +51,8 @@ const initialProducts: Product[] = [
     description: 'A comprehensive guide to Smart Money Concepts (SMC) trading fundamentals. Learn the core principles of market structure and price action.',
     image: '/placeholder.svg',
     featured: true,
+    categories: ['SMC', 'Fundamentals'],
+    variants: [{ id: '1-standard', name: 'Standard' }],
     features: [
       'Understanding market structure',
       'Identifying liquidity pools',
@@ -63,6 +68,8 @@ const initialProducts: Product[] = [
     description: 'Master Inner Circle Trader (ICT) concepts with this complete trading guide. Discover proven strategies for consistent market success.',
     image: '/placeholder.svg',
     featured: true,
+    categories: ['ICT', 'Strategies'],
+    variants: [{ id: '2-standard', name: 'Standard' }],
     features: [
       'Market manipulation tactics',
       'Institutional order flow',
@@ -78,6 +85,8 @@ const initialProducts: Product[] = [
     description: 'Take your trading to the next level with advanced market structure analysis. Learn to identify and capitalize on high-probability trade setups.',
     image: '/placeholder.svg',
     featured: false,
+    categories: ['Advanced', 'Market Structure'],
+    variants: [{ id: '3-standard', name: 'Standard' }],
     features: [
       'Advanced swing failure patterns',
       'Equal highs and lows identification',
@@ -93,6 +102,8 @@ const initialProducts: Product[] = [
     description: 'Discover the secrets of supply and demand zones in financial markets. Learn how to identify and trade these institutional levels like a pro.',
     image: '/placeholder.svg',
     featured: false,
+    categories: ['Supply and Demand', 'Price Action'],
+    variants: [{ id: '4-standard', name: 'Standard' }],
     features: [
       'Identifying valid supply and demand zones',
       'Fresh vs. tested zones',
@@ -108,6 +119,8 @@ const initialProducts: Product[] = [
     description: 'Master your trading mindset with this comprehensive psychology guide. Learn to overcome emotional biases and develop a disciplined trading approach.',
     image: '/placeholder.svg',
     featured: true,
+    categories: ['Psychology', 'Mindset'],
+    variants: [{ id: '5-standard', name: 'Standard' }],
     features: [
       'Overcoming trading fears',
       'Managing trading stress',
@@ -123,6 +136,8 @@ const initialProducts: Product[] = [
     description: 'A structured template for creating your personalized trading plan. Get organized and improve your trading consistency with this essential resource.',
     image: '/placeholder.svg',
     featured: false,
+    categories: ['Planning', 'Organization'],
+    variants: [{ id: '6-standard', name: 'Standard' }],
     features: [
       'Strategy definition framework',
       'Risk management guidelines',
