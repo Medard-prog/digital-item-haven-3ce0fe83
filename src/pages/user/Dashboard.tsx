@@ -89,7 +89,7 @@ const Dashboard = () => {
           >
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-              <p className="text-muted-foreground mt-1">Welcome back, {user?.displayName || user?.email || 'Trader'}</p>
+              <p className="text-muted-foreground mt-1">Welcome back, {user?.email?.split('@')[0] || 'Trader'}</p>
             </div>
             
             <Tabs defaultValue="overview" className="w-full">
