@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import UserSidebar from '@/components/UserSidebar';
@@ -65,7 +64,6 @@ const Security = () => {
       setIsLoading(true);
       setIsSuccess(false);
       
-      // First check the current password by trying to sign in
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: user?.email || '',
         password: currentPassword
@@ -80,7 +78,6 @@ const Security = () => {
         return;
       }
       
-      // Update the password
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
@@ -89,7 +86,6 @@ const Security = () => {
         throw error;
       }
       
-      // Clear the form
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -117,16 +113,10 @@ const Security = () => {
     try {
       setDeleteLoading(true);
       
-      // This would need to be implemented with a server-side function
-      // For now, we'll just show a success message
       toast({
         title: "Account deletion requested",
         description: "Your account will be deleted shortly."
       });
-      
-      // In a real implementation, you would make a call to a server function:
-      // Example:
-      // await supabase.functions.invoke('delete-account', { body: { userId: user.id } });
       
     } catch (error: any) {
       toast({
@@ -153,166 +143,170 @@ const Security = () => {
         </header>
         
         <div className="grid gap-8">
-          <Card as={motion.div} 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="h-5 w-5 text-primary" />
-                Change Password
-              </CardTitle>
-              <CardDescription>Update your password to secure your account</CardDescription>
-            </CardHeader>
-            <form onSubmit={handlePasswordChange}>
-              <CardContent className="space-y-4">
-                {isSuccess && (
-                  <div className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 p-4 rounded-lg flex items-start gap-3 mb-4">
-                    <CheckCircle2 className="h-5 w-5 mt-0.5" />
-                    <div>
-                      <p className="font-medium">Password updated successfully</p>
-                      <p className="text-sm opacity-90">Your password has been changed. You will use the new password the next time you log in.</p>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-primary" />
+                  Change Password
+                </CardTitle>
+                <CardDescription>Update your password to secure your account</CardDescription>
+              </CardHeader>
+              <form onSubmit={handlePasswordChange}>
+                <CardContent className="space-y-4">
+                  {isSuccess && (
+                    <div className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 p-4 rounded-lg flex items-start gap-3 mb-4">
+                      <CheckCircle2 className="h-5 w-5 mt-0.5" />
+                      <div>
+                        <p className="font-medium">Password updated successfully</p>
+                        <p className="text-sm opacity-90">Your password has been changed. You will use the new password the next time you log in.</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="current-password" className="text-sm font-medium">
+                      Current Password
+                    </label>
+                    <div className="relative">
+                      <Input
+                        id="current-password"
+                        type={showPassword ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="pr-10"
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
                     </div>
                   </div>
-                )}
-                
-                <div className="space-y-2">
-                  <label htmlFor="current-password" className="text-sm font-medium">
-                    Current Password
-                  </label>
-                  <div className="relative">
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="new-password" className="text-sm font-medium">
+                      New Password
+                    </label>
                     <Input
-                      id="current-password"
-                      type={showPassword ? "text" : "password"}
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="pr-10"
-                      autoComplete="current-password"
+                      id="new-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      autoComplete="new-password"
                     />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="new-password" className="text-sm font-medium">
-                    New Password
-                  </label>
-                  <Input
-                    id="new-password"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    autoComplete="new-password"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="confirm-password" className="text-sm font-medium">
-                    Confirm New Password
-                  </label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    autoComplete="new-password"
-                  />
-                </div>
-                
-                {newPassword && newPassword.length < 6 && (
-                  <div className="flex items-center text-amber-500 text-sm">
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Password must be at least 6 characters long
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="confirm-password" className="text-sm font-medium">
+                      Confirm New Password
+                    </label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      autoComplete="new-password"
+                    />
                   </div>
-                )}
-                
-                {newPassword && confirmPassword && newPassword !== confirmPassword && (
-                  <div className="flex items-center text-red-500 text-sm">
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Passwords don't match
-                  </div>
-                )}
-              </CardContent>
-              
-              <CardFooter>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Updating Password
-                    </>
-                  ) : (
-                    "Update Password"
+                  
+                  {newPassword && newPassword.length < 6 && (
+                    <div className="flex items-center text-amber-500 text-sm">
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Password must be at least 6 characters long
+                    </div>
                   )}
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
+                  
+                  {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                    <div className="flex items-center text-red-500 text-sm">
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Passwords don't match
+                    </div>
+                  )}
+                </CardContent>
+                
+                <CardFooter>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Updating Password
+                      </>
+                    ) : (
+                      "Update Password"
+                    )}
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+          </motion.div>
           
-          <Card as={motion.div} 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.1 }}
           >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShieldAlert className="h-5 w-5 text-red-500" />
-                Account Deletion
-              </CardTitle>
-              <CardDescription>
-                Permanently delete your account and all associated data
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded-lg">
-                <p className="font-medium mb-1">Warning: This action cannot be undone</p>
-                <p className="text-sm">Once you delete your account, all your personal information, purchases, and preferences will be permanently removed.</p>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">Delete Account</Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete your
-                      account and remove all your data from our servers.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDeleteAccount}
-                      className="bg-red-500 hover:bg-red-600"
-                    >
-                      {deleteLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Deleting...
-                        </>
-                      ) : (
-                        "Yes, delete my account"
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </CardFooter>
-          </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5 text-red-500" />
+                  Account Deletion
+                </CardTitle>
+                <CardDescription>
+                  Permanently delete your account and all associated data
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded-lg">
+                  <p className="font-medium mb-1">Warning: This action cannot be undone</p>
+                  <p className="text-sm">Once you delete your account, all your personal information, purchases, and preferences will be permanently removed.</p>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">Delete Account</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete your
+                        account and remove all your data from our servers.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteAccount}
+                        className="bg-red-500 hover:bg-red-600"
+                      >
+                        {deleteLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Deleting...
+                          </>
+                        ) : (
+                          "Yes, delete my account"
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </CardFooter>
+            </Card>
+          </motion.div>
         </div>
       </div>
     </UserSidebar>
