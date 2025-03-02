@@ -10,11 +10,25 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
-interface CheckoutFormProps {
-  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+interface CartItemWithDetails {
+  id: string;
+  quantity: number;
+  variantId?: string;
+  product?: {
+    id: string;
+    title: string;
+    price: number;
+    image?: string;
+    variants?: Array<{id: string, name: string, price?: number}>;
+  };
 }
 
-const CheckoutForm = ({ setIsLoading }: CheckoutFormProps) => {
+interface CheckoutFormProps {
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  cartItemsWithDetails: CartItemWithDetails[];
+}
+
+const CheckoutForm = ({ setIsLoading, cartItemsWithDetails }: CheckoutFormProps) => {
   const navigate = useNavigate();
   const { state, dispatch } = useStore();
   const { toast } = useToast();
@@ -44,8 +58,8 @@ const CheckoutForm = ({ setIsLoading }: CheckoutFormProps) => {
     
     try {
       // Calculate total
-      const subtotal = state.cart.items.reduce(
-        (sum, item) => sum + (item.price * item.quantity), 
+      const subtotal = cartItemsWithDetails.reduce(
+        (sum, item) => sum + ((item.product?.price || 0) * item.quantity), 
         0
       );
       const tax = subtotal * 0.1; // 10% tax
@@ -71,12 +85,12 @@ const CheckoutForm = ({ setIsLoading }: CheckoutFormProps) => {
           const orderId = orderData[0].id;
           
           // Insert order items
-          const orderItems = state.cart.items.map(item => ({
+          const orderItems = cartItemsWithDetails.map(item => ({
             order_id: orderId,
             product_id: item.id,
             variant_id: item.variantId || null,
             quantity: item.quantity,
-            price: item.price
+            price: item.product?.price || 0
           }));
           
           const { error: itemsError } = await supabase

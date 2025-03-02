@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { useStore, formatCurrency } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Trash2, Minus, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -24,6 +23,11 @@ const CartItem = ({ item, onRemove, onUpdateQuantity }: CartItemProps) => {
   if (!item.product) {
     return null;
   }
+  
+  // Create a formatCurrency function that's consistent with the one used elsewhere
+  const formatCurrency = (amount: number): string => {
+    return `$${amount.toFixed(2)}`;
+  };
   
   return (
     <motion.div 

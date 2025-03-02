@@ -6,17 +6,33 @@ import CheckoutForm from '@/components/CheckoutForm';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/lib/store';
-import { formatCurrency } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+// Define the formatCurrency function since it's missing from utils
+const formatCurrency = (amount: number): string => {
+  return `$${amount.toFixed(2)}`;
+};
 
 const Checkout = () => {
   const { state } = useStore();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   
-  const subtotal = state.cart.items.reduce(
-    (sum, item) => sum + (item.price * item.quantity), 
+  // Get products to access product details
+  const products = state.products;
+  
+  // Map cart items to include product information
+  const cartItemsWithDetails = state.cart.items.map(item => {
+    const product = products.find(p => p.id === item.id);
+    return {
+      ...item,
+      product
+    };
+  });
+  
+  const subtotal = cartItemsWithDetails.reduce(
+    (sum, item) => sum + ((item.product?.price || 0) * item.quantity), 
     0
   );
   
@@ -68,15 +84,16 @@ const Checkout = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {state.cart.items.map((item) => (
+                {cartItemsWithDetails.map((item) => (
                   <div key={`${item.id}-${item.variantId || 'default'}`} className="flex justify-between">
                     <div>
-                      <p className="font-medium">{item.title}</p>
+                      <p className="font-medium">{item.product?.title || 'Unknown Product'}</p>
                       <p className="text-sm text-muted-foreground">
-                        Qty: {item.quantity} {item.variantName ? `(${item.variantName})` : ''}
+                        Qty: {item.quantity} {item.product?.variants?.find(v => v.id === item.variantId)?.name ? 
+                          `(${item.product.variants.find(v => v.id === item.variantId)?.name})` : ''}
                       </p>
                     </div>
-                    <p>{formatCurrency(item.price * item.quantity)}</p>
+                    <p>{formatCurrency((item.product?.price || 0) * item.quantity)}</p>
                   </div>
                 ))}
                 
@@ -109,7 +126,7 @@ const Checkout = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <CheckoutForm setIsLoading={setIsLoading} />
+                  <CheckoutForm setIsLoading={setIsLoading} cartItemsWithDetails={cartItemsWithDetails} />
                 </CardContent>
                 <CardFooter className="flex flex-col space-y-4 border-t pt-6">
                   <p className="text-sm text-muted-foreground">
