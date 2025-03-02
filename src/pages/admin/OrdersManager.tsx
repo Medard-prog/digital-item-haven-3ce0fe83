@@ -1,82 +1,96 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Eye, FileDown } from 'lucide-react';
-
-// Mock orders data
-const mockOrders = [
-  {
-    id: 'ORD-001',
-    customer: 'John Doe',
-    email: 'john@example.com',
-    date: '2023-06-12',
-    total: 199.99,
-    status: 'completed',
-    items: [
-      { id: '1', title: 'SMC Full Course Bundle', price: 199.99, quantity: 1 }
-    ]
-  },
-  {
-    id: 'ORD-002',
-    customer: 'Jane Smith',
-    email: 'jane@example.com',
-    date: '2023-06-11',
-    total: 79.00,
-    status: 'completed',
-    items: [
-      { id: '2', title: 'ICT Trader\'s Guide', price: 79.00, quantity: 1 }
-    ]
-  },
-  {
-    id: 'ORD-003',
-    customer: 'Mike Johnson',
-    email: 'mike@example.com',
-    date: '2023-06-10',
-    total: 128.00,
-    status: 'completed',
-    items: [
-      { id: '3', title: 'Advanced Trading Psychology', price: 49.00, quantity: 1 },
-      { id: '4', title: 'Market Structure Analysis', price: 79.00, quantity: 1 }
-    ]
-  },
-  {
-    id: 'ORD-004',
-    customer: 'Sarah Williams',
-    email: 'sarah@example.com',
-    date: '2023-06-09',
-    total: 349.00,
-    status: 'completed',
-    items: [
-      { id: '5', title: 'Ultimate Trading Package', price: 349.00, quantity: 1 }
-    ]
-  },
-  {
-    id: 'ORD-005',
-    customer: 'David Brown',
-    email: 'david@example.com',
-    date: '2023-06-08',
-    total: 79.00,
-    status: 'completed',
-    items: [
-      { id: '2', title: 'ICT Trader\'s Guide', price: 79.00, quantity: 1 }
-    ]
-  }
-];
+import { Search, Eye, FileDown, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const OrdersManager = () => {
   const [search, setSearch] = useState('');
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
   
-  const filteredOrders = mockOrders.filter(order => 
-    order.id.toLowerCase().includes(search.toLowerCase()) ||
-    order.customer.toLowerCase().includes(search.toLowerCase()) ||
-    order.email.toLowerCase().includes(search.toLowerCase())
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setIsLoading(true);
+      try {
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select(`
+            *,
+            profiles:user_id (email, first_name, last_name)
+          `)
+          .order('created_at', { ascending: false });
+        
+        if (ordersError) throw ordersError;
+        
+        const ordersWithItems = await Promise.all((ordersData || []).map(async (order) => {
+          try {
+            const { data: items, error: itemsError } = await supabase
+              .from('order_items')
+              .select(`
+                *,
+                products:product_id (title, price),
+                product_variants:variant_id (name)
+              `)
+              .eq('order_id', order.id);
+            
+            if (itemsError) throw itemsError;
+            
+            return {
+              id: order.id,
+              customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || 'Unknown',
+              email: order.profiles?.email || 'No email',
+              date: order.created_at,
+              total: parseFloat(order.total) || 0,
+              status: order.status || 'pending',
+              items: (items || []).map((item: any) => ({
+                id: item.id,
+                title: item.products?.title || 'Unknown Product',
+                price: parseFloat(item.price) || 0,
+                quantity: item.quantity || 1
+              }))
+            };
+          } catch (error) {
+            console.error('Error fetching order items:', error);
+            return {
+              ...order,
+              customer: 'Unknown',
+              email: 'No email',
+              items: []
+            };
+          }
+        }));
+        
+        setOrders(ordersWithItems);
+      } catch (error: any) {
+        console.error('Error fetching orders:', error);
+        toast({
+          title: "Failed to load orders",
+          description: error.message,
+          variant: "destructive"
+        });
+        
+        setOrders([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchOrders();
+  }, []);
+  
+  const filteredOrders = orders.filter(order => 
+    (order.id && order.id.toString().toLowerCase().includes(search.toLowerCase())) ||
+    (order.customer && order.customer.toLowerCase().includes(search.toLowerCase())) ||
+    (order.email && order.email.toLowerCase().includes(search.toLowerCase()))
   );
   
   const handleViewDetails = (order: any) => {
@@ -96,6 +110,18 @@ const OrdersManager = () => {
         return 'bg-slate-500';
     }
   };
+  
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-12 h-[80vh] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-16 w-16 animate-spin mx-auto mb-6 text-primary" />
+          <h2 className="text-2xl font-bold mb-4">Loading Orders</h2>
+          <p className="text-muted-foreground">Please wait while we fetch the order data...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto px-4 py-12">
@@ -140,7 +166,7 @@ const OrdersManager = () => {
             <TableBody>
               {filteredOrders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id}</TableCell>
+                  <TableCell className="font-medium">{order.id.substring(0, 8)}</TableCell>
                   <TableCell>
                     <div>
                       <div>{order.customer}</div>
@@ -174,13 +200,12 @@ const OrdersManager = () => {
         </CardContent>
       </Card>
       
-      {/* Order Details Dialog */}
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Order Details - {selectedOrder?.id}</DialogTitle>
+            <DialogTitle>Order Details - {selectedOrder?.id?.substring(0, 8)}</DialogTitle>
             <DialogDescription>
-              {new Date(selectedOrder?.date || '').toLocaleDateString()}
+              {selectedOrder?.date ? new Date(selectedOrder.date).toLocaleDateString() : ''}
             </DialogDescription>
           </DialogHeader>
           

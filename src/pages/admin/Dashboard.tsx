@@ -1,12 +1,14 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { ArrowUpRight, Package, CreditCard, Users, DollarSign, BookOpen } from 'lucide-react';
+import { ArrowUpRight, Package, CreditCard, Users, DollarSign, BookOpen, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 // Mock data for the dashboard
 const revenueData = [
@@ -29,13 +31,72 @@ const categoryData = [
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 const AdminDashboard = () => {
-  const { state } = useStore();
-  const products = state.products;
+  const { state, dispatch } = useStore();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [productsCount, setProductsCount] = useState(0);
+  const [ordersCount, setOrdersCount] = useState(0);
+  const [customersCount, setCustomersCount] = useState(0);
+  
+  // Load products and other data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch products
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('id');
+        
+        if (productsError) throw productsError;
+        setProductsCount(productsData?.length || 0);
+        
+        // Fetch orders
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select('id');
+        
+        if (ordersError) throw ordersError;
+        setOrdersCount(ordersData?.length || 0);
+        
+        // Fetch customers (profiles)
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id');
+        
+        if (profilesError) throw profilesError;
+        setCustomersCount(profilesData?.length || 0);
+        
+      } catch (error: any) {
+        console.error('Error loading admin dashboard data:', error);
+        toast({
+          title: "Failed to load dashboard data",
+          description: error.message,
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
   
   // Simulated stats
   const totalRevenue = revenueData.reduce((sum, item) => sum + item.total, 0);
-  const totalSales = 124;
-  const activeCustomers = 78;
+  
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-12 h-[80vh] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-16 w-16 animate-spin mx-auto mb-6 text-primary" />
+          <h2 className="text-2xl font-bold mb-4">Loading Admin Dashboard</h2>
+          <p className="text-muted-foreground">Please wait while we fetch your data...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto px-4 py-12">
@@ -77,7 +138,7 @@ const AdminDashboard = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total Sales</CardDescription>
-            <CardTitle className="text-3xl">{totalSales}</CardTitle>
+            <CardTitle className="text-3xl">{ordersCount}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground flex items-center">
@@ -90,7 +151,7 @@ const AdminDashboard = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total Products</CardDescription>
-            <CardTitle className="text-3xl">{products.length}</CardTitle>
+            <CardTitle className="text-3xl">{productsCount}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
@@ -102,7 +163,7 @@ const AdminDashboard = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Active Customers</CardDescription>
-            <CardTitle className="text-3xl">{activeCustomers}</CardTitle>
+            <CardTitle className="text-3xl">{customersCount}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground flex items-center">

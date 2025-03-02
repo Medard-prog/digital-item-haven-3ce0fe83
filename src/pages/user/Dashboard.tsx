@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -9,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { ArrowRight, Award, BookOpen, Calendar, Download, ShoppingCart, User } from 'lucide-react';
+import { ArrowRight, Award, BookOpen, Calendar, Download, ShoppingCart, User, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -23,71 +22,105 @@ const UserDashboard = () => {
   const [purchases, setPurchases] = useState<any[]>([]);
   
   useEffect(() => {
-    if (user) {
-      fetchUserProfile();
-      fetchUserPurchases();
-    }
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Load profile data
+        let profileData;
+        if (user) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+          
+          if (error && error.code !== 'PGRST116') throw error;
+          profileData = data;
+        } else {
+          // Mock profile for development
+          profileData = {
+            id: '00000000-0000-0000-0000-000000000000',
+            first_name: 'Demo',
+            last_name: 'User',
+            email: 'demo@example.com'
+          };
+        }
+        
+        setProfile(profileData);
+        
+        // Load purchases data
+        let ordersData;
+        const userId = user?.id || '00000000-0000-0000-0000-000000000000';
+        
+        const { data: orders, error: ordersError } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+        
+        if (ordersError) {
+          console.error('Error fetching orders:', ordersError);
+          ordersData = [];
+        } else {
+          ordersData = orders || [];
+        }
+        
+        // For each order, fetch order items
+        const ordersWithItems = await Promise.all(ordersData.map(async (order) => {
+          try {
+            const { data: items, error: itemsError } = await supabase
+              .from('order_items')
+              .select(`
+                *,
+                products:product_id (title, image_url, price),
+                product_variants:variant_id (name)
+              `)
+              .eq('order_id', order.id);
+            
+            if (itemsError) throw itemsError;
+            
+            return {
+              ...order,
+              items: items || []
+            };
+          } catch (error) {
+            console.error('Error fetching order items:', error);
+            return {
+              ...order,
+              items: []
+            };
+          }
+        }));
+        
+        setPurchases(ordersWithItems);
+      } catch (error: any) {
+        console.error('Error fetching dashboard data:', error);
+        toast({
+          title: "Error loading dashboard",
+          description: error.message,
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
   }, [user]);
   
-  const fetchUserProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single();
-      
-      if (error) throw error;
-      setProfile(data);
-    } catch (error: any) {
-      console.error('Error fetching profile:', error);
-    }
-  };
-  
-  const fetchUserPurchases = async () => {
-    setIsLoading(true);
-    try {
-      // Fetch orders for current user
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-      
-      if (ordersError) throw ordersError;
-      
-      // For each order, fetch the order items and product details
-      const ordersWithItems = await Promise.all(orders.map(async (order) => {
-        const { data: items, error: itemsError } = await supabase
-          .from('order_items')
-          .select(`
-            *,
-            products:product_id (title, image_url, price),
-            product_variants:variant_id (name)
-          `)
-          .eq('order_id', order.id.toString());
-        
-        if (itemsError) throw itemsError;
-        
-        return {
-          ...order,
-          items: items || []
-        };
-      }));
-      
-      setPurchases(ordersWithItems);
-    } catch (error: any) {
-      console.error('Error fetching purchases:', error);
-      toast({
-        title: "Error fetching purchases",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 h-[80vh] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-16 w-16 animate-spin mx-auto mb-6 text-primary" />
+          <h2 className="text-2xl font-bold mb-4">Loading Dashboard</h2>
+          <p className="text-muted-foreground">Please wait while we fetch your data...</p>
+        </div>
+      </div>
+    );
+  }
+
   const getInitials = (name?: string) => {
     if (!name) return 'U';
     return name.charAt(0).toUpperCase();
@@ -97,11 +130,11 @@ const UserDashboard = () => {
   const userInitials = getInitials(userName !== 'User' ? userName : user?.email?.split('@')[0]);
   
   // Calculate total spent and count products
-  const totalSpent = purchases.reduce((sum, order) => sum + parseFloat(order.total.toString()), 0);
-  const totalProducts = purchases.reduce((sum, order) => sum + order.items.length, 0);
+  const totalSpent = purchases.reduce((sum, order) => sum + parseFloat(order.total?.toString() || '0'), 0);
+  const totalProducts = purchases.reduce((sum, order) => sum + (order.items?.length || 0), 0);
   
   // Get purchase date for most recent order
-  const mostRecentPurchase = purchases.length > 0 
+  const mostRecentPurchase = purchases.length > 0 && purchases[0].created_at
     ? new Date(purchases[0].created_at).toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'long', 

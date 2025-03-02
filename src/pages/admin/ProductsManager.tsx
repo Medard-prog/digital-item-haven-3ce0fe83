@@ -39,15 +39,21 @@ const ProductsManager = () => {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
+      console.log('Fetching products from Supabase...');
       const { data, error } = await supabase
         .from('products')
         .select('*, product_features(*)');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
       
-      const productsWithFeatures = data.map(product => ({
+      console.log('Products fetched:', data?.length || 0);
+      
+      const productsWithFeatures = (data || []).map(product => ({
         ...product,
-        features: product.product_features.map((f: any) => f.feature)
+        features: product.product_features?.map((f: any) => f.feature) || []
       }));
       
       setProducts(productsWithFeatures);
@@ -60,6 +66,7 @@ const ProductsManager = () => {
       });
       
     } catch (error: any) {
+      console.error('Error in fetchProducts:', error);
       toast({
         title: "Error fetching products",
         description: error.message,
@@ -363,6 +370,18 @@ const ProductsManager = () => {
     newOptions[index].isActive = !newOptions[index].isActive;
     setLanguageOptions(newOptions);
   };
+  
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-12 h-[80vh] flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-16 w-16 animate-spin mx-auto mb-6 text-primary" />
+          <h2 className="text-2xl font-bold mb-4">Loading Products</h2>
+          <p className="text-muted-foreground">Please wait while we fetch the product data...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto px-4 py-12">
