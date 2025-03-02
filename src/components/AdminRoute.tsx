@@ -5,12 +5,15 @@ import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAdmin, isLoading, refreshSession } = useAuth();
+  const { isAdmin, isLoading, refreshSession, user } = useAuth();
   const [localLoading, setLocalLoading] = useState(true);
 
   // Introduce a timeout to stop waiting for isLoading if it takes too long
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
+    
+    // Always refresh session when mounting an admin route
+    refreshSession();
     
     if (isLoading) {
       timeoutId = setTimeout(() => {
@@ -37,7 +40,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   }, [isLoading, refreshSession]);
 
   // Add debug console log
-  console.log("AdminRoute - isAdmin:", isAdmin, "isLoading:", isLoading, "localLoading:", localLoading);
+  console.log("AdminRoute - isAdmin:", isAdmin, "isLoading:", isLoading, "localLoading:", localLoading, "user:", user ? "exists" : "null");
 
   // Development mode always gets admin access
   const isDevelopment = process.env.NODE_ENV === 'development';

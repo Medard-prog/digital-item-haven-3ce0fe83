@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/lib/store';
@@ -30,11 +30,16 @@ import { useToast } from '@/hooks/use-toast';
 
 const Navbar = () => {
   const { state } = useStore();
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, signOut, refreshSession } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // Refresh auth session when Navbar mounts - this ensures admin status is current on every page
+  useEffect(() => {
+    refreshSession();
+  }, [refreshSession]);
   
   const cartItemsCount = state.cart.items.reduce(
     (total, item) => total + item.quantity, 
@@ -47,10 +52,7 @@ const Navbar = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/');
-      toast({
-        title: "Signed out successfully",
-      });
+      // Navigation is handled in the signOut function
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -63,6 +65,8 @@ const Navbar = () => {
   const userInitials = user?.email 
     ? user.email.substring(0, 2).toUpperCase() 
     : 'U';
+  
+  console.log("Navbar - user:", user ? "exists" : "null", "isAdmin:", isAdmin);
   
   return (
     <>

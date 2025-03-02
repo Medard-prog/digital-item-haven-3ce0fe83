@@ -57,9 +57,20 @@ const Products = () => {
           )
         `);
 
-      if (productsError) throw productsError;
+      if (productsError) {
+        console.error('Error fetching products:', productsError);
+        throw productsError;
+      }
 
       console.log("Products fetched:", productsData?.length || 0);
+
+      if (!productsData || productsData.length === 0) {
+        console.log("No products found in database");
+        setProducts([]);
+        setFilteredProducts([]);
+        setIsLoading(false);
+        return;
+      }
 
       // Transform Supabase data to match our Product type
       const formattedProducts: Product[] = productsData.map(product => ({
@@ -73,6 +84,8 @@ const Products = () => {
         categories: product.product_category_map?.map((c: any) => c.product_categories.name) || [],
         variants: product.product_variants || []
       }));
+
+      console.log("Formatted products:", formattedProducts);
 
       const allCategories = Array.from(new Set(
         formattedProducts.flatMap(product => product.categories || [])

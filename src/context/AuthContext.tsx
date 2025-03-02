@@ -88,12 +88,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       setIsLoading(true);
+      console.log("Signing out...");
+      
       const { error } = await supabase.auth.signOut();
       
       if (error) {
+        console.error("Sign out error:", error);
         throw error;
       }
       
+      console.log("Sign out successful");
       setUser(null);
       setIsAdmin(false);
       
@@ -101,7 +105,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         title: "Signed out successfully",
         description: "You have been signed out",
       });
+      
+      // Force a page reload to clear any cached state
+      window.location.href = '/';
+      
     } catch (error: any) {
+      console.error("Sign out error caught:", error);
       toast({
         variant: "destructive",
         title: "Sign out failed",
@@ -205,6 +214,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event, session ? "session exists" : "no session");
+        
+        if (event === 'SIGNED_OUT') {
+          console.log("User signed out");
+          setUser(null);
+          setIsAdmin(false);
+          return;
+        }
+        
         if (session?.user) {
           setUser(session.user);
           

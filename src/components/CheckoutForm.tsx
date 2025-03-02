@@ -1,311 +1,264 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useStore, formatCurrency } from '@/lib/store';
-import { toast } from 'sonner';
+import { useStore } from '@/lib/store';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { LockIcon, CreditCard } from 'lucide-react';
-
-const formSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address" }),
-  firstName: z.string().min(2, { message: "First name must be at least 2 characters" }),
-  lastName: z.string().min(2, { message: "Last name must be at least 2 characters" }),
-  address: z.string().min(5, { message: "Please enter your complete address" }),
-  city: z.string().min(2, { message: "Please enter a valid city" }),
-  zipCode: z.string().min(3, { message: "Please enter a valid postal/zip code" }),
-  country: z.string().min(2, { message: "Please select a country" }),
-  cardName: z.string().min(2, { message: "Please enter the name on your card" }),
-  cardNumber: z.string().min(15, { message: "Please enter a valid card number" }).max(19),
-  expiry: z.string().regex(/^(0[1-9]|1[0-2])\/([0-9]{2})$/, { message: "Please use MM/YY format" }),
-  cvc: z.string().regex(/^[0-9]{3,4}$/, { message: "CVC must be 3 or 4 digits" }),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CheckoutFormProps {
-  onSubmit: (data: FormValues) => Promise<void>;
-  isProcessing: boolean;
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const CheckoutForm = ({ onSubmit, isProcessing }: CheckoutFormProps) => {
-  const { state } = useStore();
+const CheckoutForm = ({ setIsLoading }: CheckoutFormProps) => {
+  const navigate = useNavigate();
+  const { state, dispatch } = useStore();
+  const { toast } = useToast();
+  const { user } = useAuth();
   
-  // Calculate totals
-  const subtotal = state.cart.items.reduce(
-    (total, item) => {
-      const product = item.product;
-      return total + (product ? product.price * item.quantity : 0);
-    },
-    0
-  );
-  const tax = subtotal * 0.05; // 5% tax
-  const total = subtotal + tax;
-  
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: '',
-      firstName: '',
-      lastName: '',
-      address: '',
-      city: '',
-      zipCode: '',
-      country: '',
-      cardName: '',
-      cardNumber: '',
-      expiry: '',
-      cvc: '',
-    },
+  const [formData, setFormData] = useState({
+    name: '',
+    email: user?.email || '',
+    address: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    cardName: '',
+    cardNumber: '',
+    expiryDate: '',
+    cvv: '',
   });
   
-  const handleSubmit = async (data: FormValues) => {
-    if (state.cart.items.length === 0) {
-      toast.error("Your cart is empty");
-      return;
-    }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
     
-    await onSubmit(data);
+    try {
+      // Calculate total
+      const subtotal = state.cart.items.reduce(
+        (sum, item) => sum + (item.price * item.quantity), 
+        0
+      );
+      const tax = subtotal * 0.1; // 10% tax
+      const total = subtotal + tax;
+      
+      // Create order in database if user is authenticated
+      if (user) {
+        // Insert order first
+        const { data: orderData, error: orderError } = await supabase
+          .from('orders')
+          .insert([
+            { 
+              user_id: user.id,
+              total: total,
+              status: 'processing'
+            }
+          ])
+          .select();
+        
+        if (orderError) throw orderError;
+        
+        if (orderData && orderData[0]) {
+          const orderId = orderData[0].id;
+          
+          // Insert order items
+          const orderItems = state.cart.items.map(item => ({
+            order_id: orderId,
+            product_id: item.id,
+            variant_id: item.variantId || null,
+            quantity: item.quantity,
+            price: item.price
+          }));
+          
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(orderItems);
+          
+          if (itemsError) throw itemsError;
+        }
+      }
+      
+      // Show success message
+      toast({
+        title: "Order Placed Successfully!",
+        description: "Thank you for your purchase.",
+      });
+      
+      // Clear cart
+      dispatch({ type: 'CLEAR_CART' });
+      
+      // Redirect to success page or dashboard
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
+      
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast({
+        variant: "destructive",
+        title: "Checkout Failed",
+        description: error.message || "There was an error processing your order.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
-    <div>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Customer Information */}
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Contact Information</h2>
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="your@email.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Shipping Information</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>First Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem className="mt-4">
-                      <FormLabel>Address</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="zipCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Zip/Postal Code</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <FormField
-                  control={form.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem className="mt-4">
-                      <FormLabel>Country</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-            
-            {/* Payment Information */}
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Payment Details</h2>
-                <div className="bg-secondary/50 p-4 rounded-lg mb-6">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                    <LockIcon className="h-4 w-4" />
-                    <span>Secure Payment Processing</span>
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="cardName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name on Card</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="cardNumber"
-                    render={({ field }) => (
-                      <FormItem className="mt-4">
-                        <FormLabel>Card Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="4242 4242 4242 4242" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <FormField
-                      control={form.control}
-                      name="expiry"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Expiry Date</FormLabel>
-                          <FormControl>
-                            <Input placeholder="MM/YY" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="cvc"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>CVC</FormLabel>
-                          <FormControl>
-                            <Input placeholder="123" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-                <div className="bg-secondary/50 p-4 rounded-lg">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>{formatCurrency(subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tax</span>
-                      <span>{formatCurrency(tax)}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between font-semibold">
-                      <span>Total</span>
-                      <span>{formatCurrency(total)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Shipping Information</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Full Name</Label>
+            <Input
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              className="rounded-md"
+            />
           </div>
           
-          <Button 
-            type="submit" 
-            className="w-full md:w-auto md:px-8 mt-8"
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <>Processing...</>
-            ) : (
-              <>
-                <CreditCard className="w-4 h-4 mr-2" />
-                Complete Purchase
-              </>
-            )}
-          </Button>
-        </form>
-      </Form>
-    </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email Address</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              className="rounded-md"
+            />
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="address">Street Address</Label>
+          <Input
+            id="address"
+            name="address"
+            value={formData.address}
+            onChange={handleChange}
+            required
+            className="rounded-md"
+          />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="city">City</Label>
+            <Input
+              id="city"
+              name="city"
+              value={formData.city}
+              onChange={handleChange}
+              required
+              className="rounded-md"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="state">State/Province</Label>
+            <Input
+              id="state"
+              name="state"
+              value={formData.state}
+              onChange={handleChange}
+              required
+              className="rounded-md"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="postalCode">ZIP/Postal Code</Label>
+            <Input
+              id="postalCode"
+              name="postalCode"
+              value={formData.postalCode}
+              onChange={handleChange}
+              required
+              className="rounded-md"
+            />
+          </div>
+        </div>
+      </div>
+      
+      <Separator />
+      
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Payment Details</h3>
+        
+        <div className="space-y-2">
+          <Label htmlFor="cardName">Name on Card</Label>
+          <Input
+            id="cardName"
+            name="cardName"
+            value={formData.cardName}
+            onChange={handleChange}
+            required
+            className="rounded-md"
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="cardNumber">Card Number</Label>
+          <Input
+            id="cardNumber"
+            name="cardNumber"
+            value={formData.cardNumber}
+            onChange={handleChange}
+            required
+            placeholder="•••• •••• •••• ••••"
+            className="rounded-md"
+          />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="expiryDate">Expiry Date</Label>
+            <Input
+              id="expiryDate"
+              name="expiryDate"
+              value={formData.expiryDate}
+              onChange={handleChange}
+              required
+              placeholder="MM/YY"
+              className="rounded-md"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="cvv">CVV</Label>
+            <Input
+              id="cvv"
+              name="cvv"
+              value={formData.cvv}
+              onChange={handleChange}
+              required
+              placeholder="•••"
+              className="rounded-md"
+            />
+          </div>
+        </div>
+      </div>
+      
+      <Button type="submit" size="lg" className="w-full">
+        Place Order
+      </Button>
+    </form>
   );
 };
 

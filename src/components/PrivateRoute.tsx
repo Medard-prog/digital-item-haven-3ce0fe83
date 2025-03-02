@@ -12,6 +12,9 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
+    // Always refresh session when mounting a private route
+    refreshSession();
+    
     if (isLoading) {
       timeoutId = setTimeout(() => {
         console.log("PrivateRoute - Still loading after 2s, refreshing session");
