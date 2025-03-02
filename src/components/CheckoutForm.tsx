@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore, formatCurrency } from '@/lib/store';
@@ -36,14 +35,20 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-const CheckoutForm = () => {
-  const { state, dispatch } = useStore();
-  const navigate = useNavigate();
-  const [isProcessing, setIsProcessing] = useState(false);
+interface CheckoutFormProps {
+  onSubmit: (data: FormValues) => Promise<void>;
+  isProcessing: boolean;
+}
+
+const CheckoutForm = ({ onSubmit, isProcessing }: CheckoutFormProps) => {
+  const { state } = useStore();
   
   // Calculate totals
-  const subtotal = state.cart.reduce(
-    (total, item) => total + item.variant.price * item.quantity, 
+  const subtotal = state.cart.items.reduce(
+    (total, item) => {
+      const product = item.product;
+      return total + (product ? product.price * item.quantity : 0);
+    },
     0
   );
   const tax = subtotal * 0.05; // 5% tax
@@ -66,29 +71,19 @@ const CheckoutForm = () => {
     },
   });
   
-  const onSubmit = async (data: FormValues) => {
-    if (state.cart.length === 0) {
+  const handleSubmit = async (data: FormValues) => {
+    if (state.cart.items.length === 0) {
       toast.error("Your cart is empty");
       return;
     }
     
-    setIsProcessing(true);
-    
-    // Simulate payment processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      
-      // Success! Clear cart and redirect
-      dispatch({ type: 'CLEAR_CART' });
-      toast.success("Order completed successfully!");
-      navigate('/');
-    }, 2000);
+    await onSubmit(data);
   };
   
   return (
     <div>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Customer Information */}
             <div className="space-y-6">

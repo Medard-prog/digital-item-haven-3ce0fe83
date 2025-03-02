@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useStore } from '@/lib/store';
@@ -27,7 +26,7 @@ const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Calculate total items in cart
-  const cartItemsCount = state.cart.reduce((total, item) => total + item.quantity, 0);
+  const cartItemsCount = state.cart.items.reduce((total, item) => total + item.quantity, 0);
   
   // Update navbar background on scroll
   useEffect(() => {
