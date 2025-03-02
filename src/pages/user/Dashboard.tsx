@@ -1,415 +1,489 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { useStore } from '@/lib/store';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import { Button } from '@/components/ui/button';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { motion } from 'framer-motion';
-import { Download, Package, Heart, Settings, LayoutDashboard, History, ShoppingBag, FileText, Users, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { ArrowRight, Award, BookOpen, Calendar, Download, ShoppingCart, User } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
-const Dashboard = () => {
+const UserDashboard = () => {
+  const [activeTab, setActiveTab] = useState('overview');
   const { user } = useAuth();
-  const { state } = useStore();
+  const { toast } = useToast();
+  const [profile, setProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [purchases, setPurchases] = useState<any[]>([]);
-  const [totalSpent, setTotalSpent] = useState(0);
   
   useEffect(() => {
     if (user) {
+      fetchUserProfile();
       fetchUserPurchases();
-    } else {
-      setIsLoading(false);
     }
   }, [user]);
+  
+  const fetchUserProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+      
+      if (error) throw error;
+      setProfile(data);
+    } catch (error: any) {
+      console.error('Error fetching profile:', error);
+    }
+  };
   
   const fetchUserPurchases = async () => {
     setIsLoading(true);
     try {
-      // Fetch orders for this user
+      // Fetch orders for current user
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select('*')
-        .eq('user_id', user?.id);
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
       
       if (ordersError) throw ordersError;
       
-      // For each order, fetch the order items with product details
-      const purchasesWithDetails = [];
-      let totalAmount = 0;
-      
-      for (const order of orders || []) {
-        const { data: orderItems, error: itemsError } = await supabase
+      // For each order, fetch the order items and product details
+      const ordersWithItems = await Promise.all(orders.map(async (order) => {
+        const { data: items, error: itemsError } = await supabase
           .from('order_items')
-          .select('*, products(*)')
-          .eq('order_id', order.id);
+          .select(`
+            *,
+            products:product_id (title, image_url, price),
+            product_variants:variant_id (name)
+          `)
+          .eq('order_id', order.id.toString());
         
         if (itemsError) throw itemsError;
         
-        // Add each order item as a purchase
-        for (const item of orderItems || []) {
-          purchasesWithDetails.push({
-            id: item.id,
-            productName: item.products?.title || 'Unknown Product',
-            date: order.created_at,
-            price: parseFloat(item.price),
-            status: order.status,
-            downloadLink: '#', // In a real app, generate download links
-            quantity: item.quantity,
-            productId: item.product_id
-          });
-          
-          totalAmount += parseFloat(item.price) * item.quantity;
-        }
-      }
+        return {
+          ...order,
+          items: items || []
+        };
+      }));
       
-      setPurchases(purchasesWithDetails);
-      setTotalSpent(totalAmount);
-    } catch (error) {
+      setPurchases(ordersWithItems);
+    } catch (error: any) {
       console.error('Error fetching purchases:', error);
+      toast({
+        title: "Error fetching purchases",
+        description: error.message,
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
   };
   
-  const fadeIn = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    return name.charAt(0).toUpperCase();
   };
   
-  // Mocked favorites from store (in a real app, fetch from database)
-  const favorites = state.products.slice(0, 2);
+  const userName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : 'User';
+  const userInitials = getInitials(userName !== 'User' ? userName : user?.email?.split('@')[0]);
   
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-          <p className="mt-4 text-muted-foreground">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  // Calculate total spent and count products
+  const totalSpent = purchases.reduce((sum, order) => sum + parseFloat(order.total.toString()), 0);
+  const totalProducts = purchases.reduce((sum, order) => sum + order.items.length, 0);
+  
+  // Get purchase date for most recent order
+  const mostRecentPurchase = purchases.length > 0 
+    ? new Date(purchases[0].created_at).toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      }) 
+    : 'No purchases yet';
+  
+  const containerAnimation = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+  
+  const itemAnimation = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
   
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
-      <Navbar />
-      
-      <main className="flex-1 py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeIn}
-            className="flex flex-col gap-6"
-          >
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="flex flex-col space-y-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center space-x-4">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={profile?.avatar_url} />
+              <AvatarFallback className="text-lg">{userInitials}</AvatarFallback>
+            </Avatar>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-              <p className="text-muted-foreground mt-1">Welcome back, {user?.email?.split('@')[0] || 'Trader'}</p>
+              <h1 className="text-2xl font-bold">Welcome back, {userName !== 'User' ? userName : user?.email?.split('@')[0]}</h1>
+              <p className="text-muted-foreground">{user?.email}</p>
             </div>
-            
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid grid-cols-4 md:w-fit">
-                <TabsTrigger value="overview" className="flex items-center gap-2">
-                  <LayoutDashboard className="h-4 w-4" />
-                  <span className="hidden sm:inline">Overview</span>
-                </TabsTrigger>
-                <TabsTrigger value="purchases" className="flex items-center gap-2">
-                  <ShoppingBag className="h-4 w-4" />
-                  <span className="hidden sm:inline">Purchases</span>
-                </TabsTrigger>
-                <TabsTrigger value="downloads" className="flex items-center gap-2">
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">Downloads</span>
-                </TabsTrigger>
-                <TabsTrigger value="favorites" className="flex items-center gap-2">
-                  <Heart className="h-4 w-4" />
-                  <span className="hidden sm:inline">Favorites</span>
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="overview" className="space-y-6 pt-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <Card className="glass-morphism">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Total Purchases</CardTitle>
-                      <CardDescription>Your lifetime purchases</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold">{purchases.length}</div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="glass-morphism">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Total Spent</CardTitle>
-                      <CardDescription>Amount invested in education</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold">
-                        ${totalSpent.toFixed(2)}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className="glass-morphism">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Saved Favorites</CardTitle>
-                      <CardDescription>Products you've bookmarked</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-3xl font-bold">{favorites.length}</div>
-                    </CardContent>
-                  </Card>
-                </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card className="glass-morphism">
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <History className="mr-2 h-5 w-5" /> Recent Purchases
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {purchases.length > 0 ? (
-                        <ScrollArea className="h-60">
-                          <div className="space-y-4">
-                            {purchases.slice(0, 3).map((purchase) => (
-                              <div key={purchase.id} className="flex justify-between items-center">
-                                <div>
-                                  <h4 className="font-medium">{purchase.productName}</h4>
-                                  <p className="text-sm text-muted-foreground">{new Date(purchase.date).toLocaleDateString()}</p>
-                                </div>
-                                <Badge>${purchase.price.toFixed(2)}</Badge>
-                              </div>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground">
-                          You haven't made any purchases yet
-                        </div>
-                      )}
-                    </CardContent>
-                    <CardFooter>
-                      <Button variant="outline" asChild className="w-full">
-                        <Link to="#purchases">View All Purchases</Link>
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                  
-                  <Card className="glass-morphism">
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <FileText className="mr-2 h-5 w-5" /> Community
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ScrollArea className="h-60">
-                        <div className="space-y-4">
-                          <div className="p-4 border rounded-lg">
-                            <h4 className="font-medium flex items-center">
-                              <Users className="mr-2 h-4 w-4" /> Trading Community
-                            </h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Join our community of traders to share insights
-                            </p>
-                            <div className="flex gap-2 mt-2">
-                              <Button variant="outline" size="sm" className="h-8 gap-1">
-                                <svg className="h-4 w-4" viewBox="0 0 127.14 96.36">
-                                  <path
-                                    d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"
-                                    fill="currentColor"
-                                  />
-                                </svg>
-                                Discord
-                              </Button>
-                              <Button variant="outline" size="sm" className="h-8 gap-1">
-                                <img src="/icons/telegram.svg" alt="Telegram" className="h-4 w-4" />
-                                Telegram
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="purchases" className="space-y-4 pt-4">
-                <Card className="glass-morphism">
-                  <CardHeader>
-                    <CardTitle>Purchase History</CardTitle>
-                    <CardDescription>
-                      View and download your purchased digital products
-                    </CardDescription>
+          </div>
+          <Button asChild>
+            <Link to="/user/profile">
+              <User className="mr-2 h-4 w-4" />
+              Edit Profile
+            </Link>
+          </Button>
+        </div>
+        
+        <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-8">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="purchases">My Purchases</TabsTrigger>
+            <TabsTrigger value="resources">Learning Resources</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="overview">
+            <motion.div 
+              className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
+              variants={containerAnimation}
+              initial="hidden"
+              animate="show"
+            >
+              <motion.div variants={itemAnimation}>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Total Spent
+                    </CardTitle>
+                    <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    {purchases.length > 0 ? (
-                      <div className="space-y-6">
-                        {purchases.map((purchase) => (
-                          <div key={purchase.id} className="flex flex-col md:flex-row justify-between gap-4 border-b pb-4">
-                            <div>
-                              <h3 className="font-medium">{purchase.productName}</h3>
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm mt-1">
-                                <p className="text-muted-foreground">
-                                  Purchased on {new Date(purchase.date).toLocaleDateString()}
-                                </p>
-                                <Badge variant="outline" className="w-fit">
-                                  ${purchase.price.toFixed(2)}
-                                </Badge>
-                              </div>
+                    <div className="text-2xl font-bold">${totalSpent.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {purchases.length} orders
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+              
+              <motion.div variants={itemAnimation}>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Products Purchased
+                    </CardTitle>
+                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{totalProducts}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Trading resources
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+              
+              <motion.div variants={itemAnimation}>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Recent Purchase
+                    </CardTitle>
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{mostRecentPurchase}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Last order date
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+              
+              <motion.div variants={itemAnimation}>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">
+                      Account Status
+                    </CardTitle>
+                    <Award className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">Active</div>
+                    <p className="text-xs text-muted-foreground">
+                      Standard membership
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </motion.div>
+            
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
+              <Card className="col-span-1">
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                  <CardDescription>
+                    Access your resources or find new trading materials
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  <Button asChild className="w-full justify-between">
+                    <Link to="/products">
+                      Browse products
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  
+                  <Button asChild variant="outline" className="w-full justify-between">
+                    <Link to="/user/purchases">
+                      View purchases
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                  
+                  <Button asChild variant="outline" className="w-full justify-between">
+                    <a href="https://discord.gg/" target="_blank" rel="noopener noreferrer">
+                      Join Discord community
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </a>
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card className="col-span-1">
+                <CardHeader>
+                  <CardTitle>Recent Purchases</CardTitle>
+                  <CardDescription>
+                    Your latest trading resources
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isLoading ? (
+                    <p className="text-center text-muted-foreground py-6">Loading purchases...</p>
+                  ) : purchases.length > 0 ? (
+                    purchases.slice(0, 3).flatMap(order => 
+                      order.items.slice(0, 2).map((item: any, index: number) => (
+                        <div key={`${order.id}-${index}`} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="relative h-10 w-10 rounded-md overflow-hidden bg-muted">
+                              {item.products?.image_url ? (
+                                <img 
+                                  src={item.products.image_url} 
+                                  alt={item.products?.title} 
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-muted">
+                                  <BookOpen className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2 mt-2 md:mt-0">
-                              <Button size="sm" variant="outline" className="h-8 gap-1">
-                                <Download className="h-3.5 w-3.5" />
+                            <div>
+                              <p className="font-medium line-clamp-1">{item.products?.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {item.product_variants?.name 
+                                  ? `${item.product_variants.name} version` 
+                                  : 'English version'}
+                              </p>
+                            </div>
+                          </div>
+                          <Button size="sm" variant="ghost" asChild>
+                            <Link to={`/user/purchases`}>
+                              <Download className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        </div>
+                      ))
+                    )
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-muted-foreground mb-4">You haven't purchased any resources yet.</p>
+                      <Button asChild>
+                        <Link to="/products">Browse Products</Link>
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {purchases.length > 0 && (
+                    <div className="pt-2">
+                      <Button variant="link" asChild className="px-0">
+                        <Link to="/user/purchases">View all purchases</Link>
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="purchases">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Purchases</CardTitle>
+                <CardDescription>
+                  All the trading resources you've purchased
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <p className="text-center text-muted-foreground py-12">Loading purchases...</p>
+                ) : purchases.length > 0 ? (
+                  <div className="space-y-8">
+                    {purchases.map((order) => (
+                      <div key={order.id} className="space-y-4">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                          <div>
+                            <p className="font-medium">Order #{order.id.toString().substring(0, 8)}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(order.created_at).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge>{order.status}</Badge>
+                            <p className="font-medium">${parseFloat(order.total.toString()).toFixed(2)}</p>
+                          </div>
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div className="space-y-4">
+                          {order.items.map((item: any) => (
+                            <div key={item.id} className="flex items-center justify-between">
+                              <div className="flex items-center space-x-4">
+                                <div className="relative h-16 w-16 rounded-md overflow-hidden bg-muted">
+                                  {item.products?.image_url ? (
+                                    <img 
+                                      src={item.products.image_url} 
+                                      alt={item.products?.title} 
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center bg-muted">
+                                      <BookOpen className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-medium line-clamp-1">{item.products?.title}</p>
+                                  {item.product_variants?.name && (
+                                    <Badge variant="outline" className="mt-1">
+                                      {item.product_variants.name}
+                                    </Badge>
+                                  )}
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    ${parseFloat(item.price.toString()).toFixed(2)}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button size="sm">
+                                <Download className="h-4 w-4 mr-2" />
                                 Download
                               </Button>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-medium mb-2">No purchases yet</h3>
-                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                          You haven't purchased any digital products yet.
-                        </p>
-                        <Button asChild>
-                          <Link to="/products">Browse Products</Link>
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="downloads" className="pt-4">
-                <Card className="glass-morphism">
-                  <CardHeader>
-                    <CardTitle>Your Downloads</CardTitle>
-                    <CardDescription>
-                      Access all your purchased digital products
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {purchases.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {purchases.map((purchase) => (
-                          <Card key={purchase.id} className="flex flex-col h-full">
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-lg">{purchase.productName}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="py-2 flex-1">
-                              <p className="text-sm text-muted-foreground">
-                                Purchased on {new Date(purchase.date).toLocaleDateString()}
-                              </p>
-                              <Badge variant="secondary" className="mt-2">
-                                Digital Product
-                              </Badge>
-                            </CardContent>
-                            <CardFooter className="border-t pt-4">
-                              <Button variant="outline" className="w-full gap-2">
-                                <Download className="h-4 w-4" />
-                                Download Now
-                              </Button>
-                            </CardFooter>
-                          </Card>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <Download className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-medium mb-2">No downloads available</h3>
-                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                          Purchase a product to get access to downloads.
-                        </p>
-                        <Button asChild>
-                          <Link to="/products">Browse Products</Link>
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="favorites" className="pt-4">
-                <Card className="glass-morphism">
-                  <CardHeader>
-                    <CardTitle>Your Favorites</CardTitle>
-                    <CardDescription>
-                      Products you've saved for later
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {favorites.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {favorites.map((product) => (
-                          <Card key={product.id} className="flex flex-col h-full">
-                            <div className="h-48 bg-gray-100 dark:bg-gray-800 rounded-t-lg overflow-hidden">
-                              <img 
-                                src={product.image || '/placeholder.svg'} 
-                                alt={product.title}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-lg">{product.title}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="py-2 flex-1">
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {product.description}
-                              </p>
-                              <div className="mt-2 font-bold">
-                                ${parseFloat(product.price).toFixed(2)}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground mb-6">You haven't purchased any resources yet.</p>
+                    <Button asChild>
+                      <Link to="/products">Browse Products</Link>
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="resources">
+            <Card>
+              <CardHeader>
+                <CardTitle>Learning Resources</CardTitle>
+                <CardDescription>
+                  Track your progress and access your trading materials
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {purchases.length > 0 ? (
+                  <div className="space-y-6">
+                    {purchases.flatMap(order => 
+                      order.items.map((item: any) => (
+                        <div key={item.id} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center space-x-3">
+                              <div className="relative h-12 w-12 rounded-md overflow-hidden bg-muted">
+                                {item.products?.image_url ? (
+                                  <img 
+                                    src={item.products.image_url} 
+                                    alt={item.products?.title} 
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-muted">
+                                    <BookOpen className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                )}
                               </div>
-                            </CardContent>
-                            <CardFooter className="border-t pt-4 grid grid-cols-2 gap-2">
-                              <Button variant="outline" className="w-full">
-                                <Heart className="h-4 w-4 mr-2 text-destructive" fill="currentColor" />
-                                Remove
-                              </Button>
-                              <Button asChild>
-                                <Link to={`/product/${product.id}`}>
-                                  View
-                                </Link>
-                              </Button>
-                            </CardFooter>
-                          </Card>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <Heart className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-medium mb-2">No favorites yet</h3>
-                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                          You haven't added any products to your favorites yet.
-                        </p>
-                        <Button asChild>
-                          <Link to="/products">Browse Products</Link>
-                        </Button>
-                      </div>
+                              <div>
+                                <p className="font-medium">{item.products?.title}</p>
+                                {item.product_variants?.name && (
+                                  <Badge variant="outline" className="mt-1">
+                                    {item.product_variants.name}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <Button size="sm">
+                              <Download className="h-4 w-4 mr-2" />
+                              Access
+                            </Button>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span>Progress</span>
+                              <span>23%</span>
+                            </div>
+                            <Progress value={23} className="h-2" />
+                          </div>
+                        </div>
+                      ))
                     )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </motion.div>
-        </div>
-      </main>
-      
-      <Footer />
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground mb-6">Purchase resources to start learning.</p>
+                    <Button asChild>
+                      <Link to="/products">Browse Products</Link>
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" className="w-full">View all resources</Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default UserDashboard;

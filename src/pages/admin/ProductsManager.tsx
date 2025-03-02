@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
@@ -53,10 +52,11 @@ const ProductsManager = () => {
       
       setProducts(productsWithFeatures);
       
-      // Also update the store with these products
-      dispatch({
-        type: 'SET_PRODUCTS',
-        payload: productsWithFeatures
+      productsWithFeatures.forEach(product => {
+        dispatch({
+          type: 'ADD_PRODUCT',
+          payload: product
+        });
       });
       
     } catch (error: any) {
@@ -99,7 +99,6 @@ const ProductsManager = () => {
   const handleManageLanguages = (product: any) => {
     setCurrentProduct(product);
     
-    // Fetch language variants for this product
     const fetchLanguageVariants = async () => {
       try {
         const { data, error } = await supabase
@@ -109,13 +108,11 @@ const ProductsManager = () => {
         
         if (error) throw error;
         
-        // Reset all language options to inactive
         const resetOptions = languageOptions.map(option => ({
           ...option,
           isActive: false
         }));
         
-        // Mark the languages that are active for this product
         if (data && data.length > 0) {
           data.forEach((variant: any) => {
             const index = resetOptions.findIndex(opt => opt.value === variant.name);
@@ -148,13 +145,11 @@ const ProductsManager = () => {
     if (!currentProduct) return;
     
     try {
-      // First delete existing language variants
       await supabase
         .from('product_variants')
         .delete()
         .eq('product_id', currentProduct.id);
       
-      // Add selected language variants
       const selectedLanguages = languageOptions.filter(opt => opt.isActive);
       
       for (const lang of selectedLanguages) {
@@ -163,7 +158,7 @@ const ProductsManager = () => {
           .insert({
             product_id: currentProduct.id,
             name: lang.value,
-            price: currentProduct.price // Use same price as base product
+            price: currentProduct.price
           });
       }
       
@@ -186,19 +181,16 @@ const ProductsManager = () => {
     if (currentProduct) {
       setIsLoading(true);
       try {
-        // First delete product features
         await supabase
           .from('product_features')
           .delete()
           .eq('product_id', currentProduct.id);
-          
-        // Delete product variants
+        
         await supabase
           .from('product_variants')
           .delete()
           .eq('product_id', currentProduct.id);
         
-        // Delete the product
         const { error } = await supabase
           .from('products')
           .delete()
@@ -206,10 +198,8 @@ const ProductsManager = () => {
         
         if (error) throw error;
         
-        // Update local state
         setProducts(prevProducts => prevProducts.filter(p => p.id !== currentProduct.id));
         
-        // Update the store
         dispatch({
           type: 'DELETE_PRODUCT',
           payload: currentProduct.id
@@ -239,14 +229,11 @@ const ProductsManager = () => {
     if (currentProduct) {
       setIsLoading(true);
       try {
-        // Check if product already exists
         const isNewProduct = !products.find(p => p.id === currentProduct.id);
         
-        // Handle product save
         let productId = currentProduct.id;
         
         if (isNewProduct) {
-          // Create new product
           const { data, error } = await supabase
             .from('products')
             .insert({
@@ -261,8 +248,15 @@ const ProductsManager = () => {
           
           if (error) throw error;
           productId = data.id;
+          
+          dispatch({
+            type: 'ADD_PRODUCT',
+            payload: {
+              ...data,
+              features: currentProduct.features
+            }
+          });
         } else {
-          // Update existing product
           const { error } = await supabase
             .from('products')
             .update({
@@ -276,14 +270,19 @@ const ProductsManager = () => {
           
           if (error) throw error;
           
-          // Delete existing features to replace them
+          dispatch({
+            type: 'UPDATE_PRODUCT',
+            payload: {
+              ...currentProduct
+            }
+          });
+          
           await supabase
             .from('product_features')
             .delete()
             .eq('product_id', productId);
         }
         
-        // Add features
         if (currentProduct.features && currentProduct.features.length > 0) {
           for (let i = 0; i < currentProduct.features.length; i++) {
             const feature = currentProduct.features[i];
@@ -299,7 +298,6 @@ const ProductsManager = () => {
           }
         }
         
-        // Refresh products
         await fetchProducts();
         
         toast({
@@ -455,7 +453,6 @@ const ProductsManager = () => {
         </CardContent>
       </Card>
       
-      {/* Product Form Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <form onSubmit={handleDialogSubmit}>
@@ -573,7 +570,6 @@ const ProductsManager = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Language Options Dialog */}
       <Dialog open={isLanguageDialogOpen} onOpenChange={setIsLanguageDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -617,7 +613,6 @@ const ProductsManager = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
