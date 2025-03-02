@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,15 +22,17 @@ const OrdersManager = () => {
     const fetchOrders = async () => {
       setIsLoading(true);
       try {
+        console.log("Fetching orders...");
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
           .select(`
             *,
-            profiles:user_id (email, first_name, last_name)
+            profiles (email, first_name, last_name)
           `)
           .order('created_at', { ascending: false });
         
         if (ordersError) throw ordersError;
+        console.log("Orders data:", ordersData);
         
         const ordersWithItems = await Promise.all((ordersData || []).map(async (order) => {
           try {
@@ -37,8 +40,8 @@ const OrdersManager = () => {
               .from('order_items')
               .select(`
                 *,
-                products:product_id (title, price),
-                product_variants:variant_id (name)
+                products (title, price),
+                product_variants (name)
               `)
               .eq('order_id', order.id);
             
@@ -46,15 +49,17 @@ const OrdersManager = () => {
             
             return {
               id: order.id,
-              customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || 'Unknown',
+              customer: order.profiles ? 
+                `${order.profiles.first_name || ''} ${order.profiles.last_name || ''}`.trim() || 'Unknown' : 
+                'Unknown',
               email: order.profiles?.email || 'No email',
               date: order.created_at,
-              total: parseFloat(order.total) || 0,
+              total: typeof order.total === 'number' ? order.total : parseFloat(order.total) || 0,
               status: order.status || 'pending',
               items: (items || []).map((item: any) => ({
                 id: item.id,
                 title: item.products?.title || 'Unknown Product',
-                price: parseFloat(item.price) || 0,
+                price: typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0,
                 quantity: item.quantity || 1
               }))
             };
@@ -69,6 +74,7 @@ const OrdersManager = () => {
           }
         }));
         
+        console.log("Processed orders:", ordersWithItems);
         setOrders(ordersWithItems);
       } catch (error: any) {
         console.error('Error fetching orders:', error);
@@ -78,7 +84,47 @@ const OrdersManager = () => {
           variant: "destructive"
         });
         
-        setOrders([]);
+        // For development, create some dummy orders
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Development mode: setting mock orders");
+          const mockOrders = [
+            {
+              id: 'mock-order-1',
+              customer: 'John Doe',
+              email: 'john@example.com',
+              date: new Date().toISOString(),
+              total: 199.99,
+              status: 'completed',
+              items: [
+                {
+                  id: 'mock-item-1',
+                  title: 'SMC Trading Course Bundle',
+                  price: 199.99,
+                  quantity: 1
+                }
+              ]
+            },
+            {
+              id: 'mock-order-2',
+              customer: 'Jane Smith',
+              email: 'jane@example.com',
+              date: new Date().toISOString(),
+              total: 149.99,
+              status: 'processing',
+              items: [
+                {
+                  id: 'mock-item-2',
+                  title: 'ICT Mentorship Program',
+                  price: 149.99,
+                  quantity: 1
+                }
+              ]
+            }
+          ];
+          setOrders(mockOrders);
+        } else {
+          setOrders([]);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -166,18 +212,18 @@ const OrdersManager = () => {
             <TableBody>
               {filteredOrders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.id.substring(0, 8)}</TableCell>
+                  <TableCell className="font-medium">{typeof order.id === 'string' ? order.id.substring(0, 8) : order.id}</TableCell>
                   <TableCell>
                     <div>
                       <div>{order.customer}</div>
                       <div className="text-sm text-muted-foreground">{order.email}</div>
                     </div>
                   </TableCell>
-                  <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
-                  <TableCell>${order.total.toFixed(2)}</TableCell>
+                  <TableCell>{order.date ? new Date(order.date).toLocaleDateString() : 'N/A'}</TableCell>
+                  <TableCell>${typeof order.total === 'number' ? order.total.toFixed(2) : '0.00'}</TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(order.status)}>
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Pending'}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -203,7 +249,7 @@ const OrdersManager = () => {
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Order Details - {selectedOrder?.id?.substring(0, 8)}</DialogTitle>
+            <DialogTitle>Order Details - {selectedOrder?.id ? (typeof selectedOrder.id === 'string' ? selectedOrder.id.substring(0, 8) : selectedOrder.id) : 'Unknown'}</DialogTitle>
             <DialogDescription>
               {selectedOrder?.date ? new Date(selectedOrder.date).toLocaleDateString() : ''}
             </DialogDescription>
@@ -213,23 +259,27 @@ const OrdersManager = () => {
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Customer Information</h3>
               <div className="bg-secondary rounded-md p-3">
-                <p className="font-medium">{selectedOrder?.customer}</p>
-                <p className="text-sm">{selectedOrder?.email}</p>
+                <p className="font-medium">{selectedOrder?.customer || 'Unknown'}</p>
+                <p className="text-sm">{selectedOrder?.email || 'No email'}</p>
               </div>
             </div>
             
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Order Items</h3>
               <div className="bg-secondary rounded-md p-3 space-y-3">
-                {selectedOrder?.items.map((item: any, index: number) => (
+                {selectedOrder?.items && selectedOrder.items.map((item: any, index: number) => (
                   <div key={index} className="flex justify-between items-center">
                     <div>
-                      <p className="font-medium">{item.title}</p>
-                      <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                      <p className="font-medium">{item.title || 'Unknown Product'}</p>
+                      <p className="text-sm text-muted-foreground">Qty: {item.quantity || 1}</p>
                     </div>
-                    <p className="font-medium">${(item.price * item.quantity).toFixed(2)}</p>
+                    <p className="font-medium">${typeof item.price === 'number' && typeof item.quantity === 'number' ? (item.price * item.quantity).toFixed(2) : '0.00'}</p>
                   </div>
                 ))}
+                
+                {(!selectedOrder?.items || selectedOrder.items.length === 0) && (
+                  <p className="text-center text-muted-foreground py-2">No items found</p>
+                )}
               </div>
             </div>
             
@@ -238,7 +288,7 @@ const OrdersManager = () => {
               <div className="bg-secondary rounded-md p-3">
                 <div className="flex justify-between items-center py-1">
                   <p className="text-muted-foreground">Subtotal</p>
-                  <p>${selectedOrder?.total.toFixed(2)}</p>
+                  <p>${typeof selectedOrder?.total === 'number' ? selectedOrder.total.toFixed(2) : '0.00'}</p>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <p className="text-muted-foreground">Digital Delivery</p>
@@ -246,15 +296,15 @@ const OrdersManager = () => {
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-border mt-2">
                   <p className="font-medium">Total</p>
-                  <p className="font-bold">${selectedOrder?.total.toFixed(2)}</p>
+                  <p className="font-bold">${typeof selectedOrder?.total === 'number' ? selectedOrder.total.toFixed(2) : '0.00'}</p>
                 </div>
               </div>
             </div>
             
             <div className="flex justify-between items-center">
               <div>
-                <Badge className={getStatusColor(selectedOrder?.status || '')}>
-                  {selectedOrder?.status?.charAt(0).toUpperCase() + selectedOrder?.status?.slice(1)}
+                <Badge className={getStatusColor(selectedOrder?.status || 'pending')}>
+                  {selectedOrder?.status ? selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1) : 'Pending'}
                 </Badge>
               </div>
               <Button variant="outline" size="sm" onClick={() => setIsDetailsOpen(false)}>

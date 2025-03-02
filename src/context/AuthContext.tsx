@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshSession = async () => {
     try {
+      console.log("Refreshing session...");
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
@@ -30,6 +31,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       if (session?.user) {
+        console.log("Session found, user is logged in", session.user);
         setUser(session.user);
         
         // Fetch user profile to determine admin status
@@ -43,16 +45,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('Error fetching profile:', profileError);
           setIsAdmin(false);
         } else {
+          console.log("Profile data:", profileData);
           setIsAdmin(profileData?.is_admin || false);
         }
+      } else {
+        console.log("No session found, user is not logged in");
+        // For development, create a fake user and admin status
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Development mode: setting mock user");
+          setUser({ id: 'dev-user-id', email: 'dev@example.com' });
+          setIsAdmin(true);
+        } else {
+          setUser(null);
+          setIsAdmin(false);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error refreshing session:', error.message);
+      // For development, create a fake user and admin status
+      if (process.env.NODE_ENV === 'development') {
+        console.log("Development mode: setting mock user after error");
+        setUser({ id: 'dev-user-id', email: 'dev@example.com' });
+        setIsAdmin(true);
       } else {
         setUser(null);
         setIsAdmin(false);
       }
-    } catch (error: any) {
-      console.error('Error refreshing session:', error.message);
-      setUser(null);
-      setIsAdmin(false);
     } finally {
       setIsLoading(false);
     }
@@ -65,6 +83,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session ? "session exists" : "no session");
         if (session?.user) {
           setUser(session.user);
           
@@ -82,8 +101,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setIsAdmin(profileData?.is_admin || false);
           }
         } else {
-          setUser(null);
-          setIsAdmin(false);
+          // For development, create a fake user and admin status
+          if (process.env.NODE_ENV === 'development') {
+            console.log("Development mode: setting mock user on auth change");
+            setUser({ id: 'dev-user-id', email: 'dev@example.com' });
+            setIsAdmin(true);
+          } else {
+            setUser(null);
+            setIsAdmin(false);
+          }
         }
         setIsLoading(false);
       }
