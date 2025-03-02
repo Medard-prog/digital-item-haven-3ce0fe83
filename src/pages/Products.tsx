@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useStore, Product } from '@/lib/store';
@@ -27,11 +28,12 @@ import {
 } from '@/components/ui/checkbox';
 
 const Products = () => {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
   const location = useLocation();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,23 +58,30 @@ const Products = () => {
 
       if (productsError) throw productsError;
 
-      const products = productsData.map(product => ({
-        ...product,
+      const formattedProducts = productsData.map(product => ({
+        id: product.id,
+        title: product.title,
+        description: product.description,
+        price: product.price,
+        image: product.image_url,
+        featured: product.featured,
         features: product.product_features?.map((f: any) => f.feature) || [],
         categories: product.product_category_map?.map((c: any) => c.product_categories.name) || [],
         variants: product.product_variants || []
       }));
 
       const allCategories = Array.from(new Set(
-        products.flatMap(product => product.categories)
+        formattedProducts.flatMap(product => product.categories)
       )).sort();
 
       setCategories(allCategories);
-      setFilteredProducts(products);
+      setProducts(formattedProducts);
+      setFilteredProducts(formattedProducts);
       
+      // Update the global store
       dispatch({
-        type: 'SET_PRODUCTS',
-        payload: products
+        type: 'ADD_PRODUCT',
+        payload: formattedProducts
       });
 
     } catch (err: any) {
@@ -103,7 +112,7 @@ const Products = () => {
   
   useEffect(() => {
     if (!isLoading) {
-      let filtered = filteredProducts;
+      let filtered = [...products];
       
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
@@ -122,7 +131,7 @@ const Products = () => {
       
       setFilteredProducts(filtered);
     }
-  }, [searchTerm, selectedCategories]);
+  }, [searchTerm, selectedCategories, products, isLoading]);
   
   const handleCategoryToggle = (category: string) => {
     setSelectedCategories(prev => {
