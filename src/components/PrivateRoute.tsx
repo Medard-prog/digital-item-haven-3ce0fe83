@@ -8,7 +8,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading, refreshSession } = useAuth();
   const [localLoading, setLocalLoading] = useState(true);
 
-  // Introduce a timeout to stop waiting for isLoading if it takes too long
+  // Use a faster timeout and more reliable loading state management
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
@@ -19,7 +19,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
       timeoutId = setTimeout(() => {
         console.log("Force ending loading state after timeout");
         setLocalLoading(false);
-      }, 1500); // 1.5 second timeout - reduced from 2 seconds for better UX
+      }, 1000); // 1 second timeout for better UX
     } else {
       setLocalLoading(false);
     }
@@ -37,9 +37,10 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (localLoading && isLoading && !isDevelopment) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <span className="text-lg">Loading authentication status...</span>
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+        <span className="text-lg font-medium">Verifying your access...</span>
+        <p className="text-muted-foreground mt-2">Just a moment</p>
       </div>
     );
   }

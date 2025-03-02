@@ -5,7 +5,7 @@ import UserSidebar from '@/components/UserSidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Lock, EyeOff, Eye, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Loader2, Lock, EyeOff, Eye, AlertTriangle, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { motion } from 'framer-motion';
 
 const Security = () => {
   const { user } = useAuth();
@@ -29,6 +30,7 @@ const Security = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +63,7 @@ const Security = () => {
     
     try {
       setIsLoading(true);
+      setIsSuccess(false);
       
       // First check the current password by trying to sign in
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -90,9 +93,11 @@ const Security = () => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setIsSuccess(true);
       
       toast({
         title: "Password updated successfully",
+        description: "Your password has been changed",
       });
       
     } catch (error: any) {
@@ -136,14 +141,23 @@ const Security = () => {
   
   return (
     <UserSidebar>
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6 flex items-center gap-2">
-          <Lock className="h-7 w-7 text-primary" />
-          Security
-        </h1>
+      <div className="container max-w-4xl mx-auto px-4 py-8">
+        <header className="mb-8">
+          <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
+            <Lock className="h-7 w-7 text-primary" />
+            Security
+          </h1>
+          <p className="text-muted-foreground">
+            Manage your account security settings and password
+          </p>
+        </header>
         
-        <div className="grid gap-6">
-          <Card>
+        <div className="grid gap-8">
+          <Card as={motion.div} 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Lock className="h-5 w-5 text-primary" />
@@ -153,6 +167,16 @@ const Security = () => {
             </CardHeader>
             <form onSubmit={handlePasswordChange}>
               <CardContent className="space-y-4">
+                {isSuccess && (
+                  <div className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 p-4 rounded-lg flex items-start gap-3 mb-4">
+                    <CheckCircle2 className="h-5 w-5 mt-0.5" />
+                    <div>
+                      <p className="font-medium">Password updated successfully</p>
+                      <p className="text-sm opacity-90">Your password has been changed. You will use the new password the next time you log in.</p>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="space-y-2">
                   <label htmlFor="current-password" className="text-sm font-medium">
                     Current Password
@@ -164,6 +188,7 @@ const Security = () => {
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       className="pr-10"
+                      autoComplete="current-password"
                     />
                     <button
                       type="button"
@@ -188,6 +213,7 @@ const Security = () => {
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    autoComplete="new-password"
                   />
                 </div>
                 
@@ -200,6 +226,7 @@ const Security = () => {
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
                   />
                 </div>
                 
@@ -233,7 +260,11 @@ const Security = () => {
             </form>
           </Card>
           
-          <Card>
+          <Card as={motion.div} 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShieldAlert className="h-5 w-5 text-red-500" />
@@ -244,9 +275,10 @@ const Security = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">
-                Once you delete your account, there is no going back. Please be certain.
-              </p>
+              <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 p-4 rounded-lg">
+                <p className="font-medium mb-1">Warning: This action cannot be undone</p>
+                <p className="text-sm">Once you delete your account, all your personal information, purchases, and preferences will be permanently removed.</p>
+              </div>
             </CardContent>
             <CardFooter>
               <AlertDialog>
