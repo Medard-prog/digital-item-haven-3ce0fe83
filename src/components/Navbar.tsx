@@ -10,7 +10,6 @@ import {
   X, 
   User, 
   LogOut, 
-  LogIn, 
   ShoppingBag,
   Heart, 
   BadgeHelp,
@@ -114,13 +113,29 @@ const Navbar = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 
-                <a 
-                  href="#support" 
-                  className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium relative px-1 py-2 group"
-                >
-                  Support
-                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform" />
-                </a>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary font-medium relative px-1 py-2 group flex items-center">
+                      Support
+                      <ChevronDown className="ml-1 h-4 w-4" />
+                      <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary scale-x-0 group-hover:scale-x-100 transition-transform" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="glass-card">
+                    <DropdownMenuItem>
+                      <a href="https://discord.gg/smcinsider" className="flex w-full items-center" target="_blank" rel="noopener noreferrer">
+                        <img src="/icons/discord.svg" alt="Discord" className="h-4 w-4 mr-2" />
+                        Discord Support
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <a href="https://t.me/smcinsider" className="flex w-full items-center" target="_blank" rel="noopener noreferrer">
+                        <img src="/icons/telegram.svg" alt="Telegram" className="h-4 w-4 mr-2" />
+                        Telegram Support
+                      </a>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </nav>
             </div>
             
@@ -140,15 +155,16 @@ const Navbar = () => {
                 )}
               </Button>
               
-              {/* Auth Buttons */}
+              {/* Auth Button */}
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full">
+                    <Button variant="ghost" className="flex items-center gap-2">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={user.user_metadata?.avatar_url || ''} />
                         <AvatarFallback className="bg-primary text-white">{userInitials}</AvatarFallback>
                       </Avatar>
+                      <span className="hidden sm:inline-block">Dashboard</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="glass-card w-56">
@@ -158,36 +174,34 @@ const Navbar = () => {
                       </div>
                     </div>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard" className="flex w-full">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
                     {isAdmin && (
                       <>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem asChild>
                           <Link to="/admin" className="flex w-full">
                             <GanttChartSquare className="mr-2 h-4 w-4" />
-                            <span>Dashboard</span>
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Link to="/admin/products" className="flex w-full">
-                            <ShoppingBag className="mr-2 h-4 w-4" />
-                            <span>Manage Products</span>
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Link to="/admin/orders" className="flex w-full">
-                            <ShoppingCart className="mr-2 h-4 w-4" />
-                            <span>Manage Orders</span>
+                            <span>Admin Panel</span>
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                       </>
                     )}
-                    <DropdownMenuItem>
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="flex w-full">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Profile</span>
+                      </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Heart className="mr-2 h-4 w-4" />
-                      <span>Favorites</span>
+                    <DropdownMenuItem asChild>
+                      <Link to="/favorites" className="flex w-full">
+                        <Heart className="mr-2 h-4 w-4" />
+                        <span>Favorites</span>
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut}>
@@ -198,14 +212,8 @@ const Navbar = () => {
                 </DropdownMenu>
               ) : (
                 <div className="hidden md:flex space-x-2">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to="/login">
-                      <LogIn className="mr-2 h-4 w-4" />
-                      Log in
-                    </Link>
-                  </Button>
-                  <Button size="sm" asChild>
-                    <Link to="/register">Sign up</Link>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/login">Authenticate</Link>
                   </Button>
                 </div>
               )}
@@ -242,13 +250,6 @@ const Navbar = () => {
             >
               Products
             </Link>
-            <a 
-              href="#support" 
-              className="text-lg font-medium p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
-              onClick={closeMenu}
-            >
-              Support
-            </a>
             
             <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Resources</p>
@@ -284,18 +285,66 @@ const Navbar = () => {
               </div>
             </div>
             
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Support (24/7)</p>
+              <div className="flex flex-col space-y-2">
+                <a 
+                  href="https://discord.gg/smcinsider" 
+                  className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  <img src="/icons/discord.svg" alt="Discord" className="h-4 w-4 mr-2" />
+                  Discord Support
+                </a>
+                <a 
+                  href="https://t.me/smcinsider" 
+                  className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  <img src="/icons/telegram.svg" alt="Telegram" className="h-4 w-4 mr-2" />
+                  Telegram Support
+                </a>
+              </div>
+            </div>
+            
             {/* Mobile Auth */}
-            {!user && (
+            {!user ? (
               <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-800 flex flex-col space-y-2">
                 <Button asChild>
-                  <Link to="/login" onClick={closeMenu}>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Log in
+                  <Link to="/login" onClick={closeMenu}>Authenticate</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Account</p>
+                <div className="flex flex-col space-y-2">
+                  <Link 
+                    to="/dashboard" 
+                    className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
+                    onClick={closeMenu}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Dashboard
                   </Link>
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link to="/register" onClick={closeMenu}>Sign up</Link>
-                </Button>
+                  <Link 
+                    to="/profile" 
+                    className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
+                    onClick={closeMenu}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
+                  <Link 
+                    to="/favorites" 
+                    className="pl-2 text-gray-700 dark:text-gray-300 flex items-center" 
+                    onClick={closeMenu}
+                  >
+                    <Heart className="mr-2 h-4 w-4" />
+                    Favorites
+                  </Link>
+                </div>
               </div>
             )}
             
@@ -341,10 +390,6 @@ const Navbar = () => {
                 </Button>
               </div>
             )}
-            
-            <div className="pt-4 mt-2 text-center text-sm text-gray-500 dark:text-gray-400">
-              <p>Need help? <a href="#support" className="text-primary font-medium">Contact support</a></p>
-            </div>
           </nav>
         </div>
       )}

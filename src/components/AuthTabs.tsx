@@ -9,14 +9,16 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Lock, Mail, User, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ArrowRight } from 'lucide-react';
 
 const AuthTabs = () => {
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login, register, resetPassword } = useAuth();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   
   const [loginData, setLoginData] = useState({
     email: '',
@@ -37,7 +39,7 @@ const AuthTabs = () => {
       await login(loginData.email, loginData.password);
       toast({
         title: "Login successful",
-        description: "Welcome back to SMCInsider!",
+        description: "Welcome back!",
       });
       navigate('/');
     } catch (error: any) {
@@ -69,7 +71,7 @@ const AuthTabs = () => {
       await register(registerData.email, registerData.password);
       toast({
         title: "Registration successful",
-        description: "Welcome to SMCInsider! You can now log in.",
+        description: "Welcome! You can now log in.",
       });
       navigate('/');
     } catch (error: any) {
@@ -83,9 +85,88 @@ const AuthTabs = () => {
     }
   };
   
-  const handleForgotPassword = () => {
-    navigate('/reset-password');
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      await resetPassword(forgotEmail);
+      toast({
+        title: "Password reset email sent",
+        description: "Check your email for instructions to reset your password",
+      });
+      setShowForgotPassword(false);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to send reset email",
+        description: error.message || "Please check your email and try again",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  if (showForgotPassword) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <Card className="w-full max-w-md mx-auto glass-morphism">
+          <CardHeader>
+            <CardTitle className="text-2xl">Reset Password</CardTitle>
+            <CardDescription>
+              Enter your email and we'll send you a link to reset your password
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={handleForgotPassword}>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    className="pl-10"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col space-y-2">
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-background border-r-transparent"></div>
+                    <span>Sending reset link...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    Send Reset Link
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </div>
+                )}
+              </Button>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                className="w-full" 
+                onClick={() => setShowForgotPassword(false)}
+              >
+                Back to Login
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -131,7 +212,7 @@ const AuthTabs = () => {
                       variant="link" 
                       className="px-0 h-auto text-xs"
                       type="button"
-                      onClick={handleForgotPassword}
+                      onClick={() => setShowForgotPassword(true)}
                     >
                       Forgot password?
                     </Button>
@@ -185,7 +266,7 @@ const AuthTabs = () => {
               <CardHeader>
                 <CardTitle className="text-2xl">Create an account</CardTitle>
                 <CardDescription>
-                  Join SMCInsider and get access to exclusive trading resources
+                  Join us and get access to exclusive trading resources
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

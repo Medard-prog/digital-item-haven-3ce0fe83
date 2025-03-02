@@ -15,10 +15,10 @@ import {
   ArrowLeft,
   ShoppingCart,
   AlertTriangle,
-  Shield,
   Zap,
   Globe,
-  Users
+  Users,
+  MessageSquare
 } from 'lucide-react';
 import {
   Accordion,
@@ -77,12 +77,12 @@ const ProductDetail = () => {
   
   // Available languages with flags
   const languages = [
-    { value: 'english', label: 'English', flag: '🇬🇧' },
-    { value: 'spanish', label: 'Spanish', flag: '🇪🇸' },
-    { value: 'french', label: 'French', flag: '🇫🇷' },
-    { value: 'german', label: 'German', flag: '🇩🇪' },
-    { value: 'japanese', label: 'Japanese', flag: '🇯🇵' },
-    { value: 'chinese', label: 'Chinese', flag: '🇨🇳' }
+    { value: 'english', label: 'English', flag: '/flags/gb.svg' },
+    { value: 'spanish', label: 'Spanish', flag: '/flags/es.svg' },
+    { value: 'french', label: 'French', flag: '/flags/fr.svg' },
+    { value: 'german', label: 'German', flag: '/flags/de.svg' },
+    { value: 'japanese', label: 'Japanese', flag: '/flags/jp.svg' },
+    { value: 'chinese', label: 'Chinese', flag: '/flags/cn.svg' }
   ];
   
   // Mock frequently asked questions
@@ -96,8 +96,8 @@ const ProductDetail = () => {
       answer: "Yes! Once purchased, you get lifetime access to the product and all future updates."
     },
     {
-      question: "Is there a money-back guarantee?",
-      answer: "Yes, we offer a 30-day satisfaction guarantee. If you're not happy with the product, contact us for a full refund."
+      question: "Is there 24/7 support available?",
+      answer: "Yes, we provide 24/7 support via Discord and Telegram. Join our community for immediate assistance with your questions."
     },
     {
       question: "Can I use this on multiple devices?",
@@ -173,20 +173,22 @@ const ProductDetail = () => {
       
       <main className="flex-1 py-10">
         <div className="content-container">
-          <Button variant="ghost" className="mb-6" asChild>
-            <Link to="/products" className="flex items-center text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Products
-            </Link>
-          </Button>
+          <div className="flex justify-start mb-6 w-full">
+            <Button variant="ghost" asChild className="mr-auto">
+              <Link to="/products" className="flex items-center text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Products
+              </Link>
+            </Button>
+          </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
-            {/* Product Image and Details - 3 cols */}
+            {/* Product Image - 2 cols */}
             <motion.div 
               initial="hidden"
               animate="visible"
               variants={fadeIn}
-              className="lg:col-span-3 space-y-8"
+              className="lg:col-span-2"
             >
               <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md relative glass-morphism">
                 <div className="aspect-video w-full overflow-hidden">
@@ -201,7 +203,15 @@ const ProductDetail = () => {
                   Digital Product
                 </div>
               </div>
-              
+            </motion.div>
+            
+            {/* Product Description and Details - 3 cols */}
+            <motion.div 
+              initial="hidden"
+              animate="visible"
+              variants={fadeIn}
+              className="lg:col-span-3 space-y-8"
+            >
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md space-y-6 glass-morphism">
                 <div>
                   <h1 className="text-3xl font-bold mb-4">{product.title}</h1>
@@ -265,12 +275,12 @@ const ProductDetail = () => {
                       
                       <div className="flex items-start">
                         <div className="bg-primary/10 p-2 rounded-full mt-0.5">
-                          <Users className="h-5 w-5 text-primary" />
+                          <MessageSquare className="h-5 w-5 text-primary" />
                         </div>
                         <div className="ml-3">
-                          <h3 className="font-medium">Community Support</h3>
+                          <h3 className="font-medium">24/7 Support</h3>
                           <p className="text-sm text-muted-foreground">
-                            Join our Discord and Telegram
+                            Discord and Telegram support
                           </p>
                         </div>
                       </div>
@@ -314,6 +324,81 @@ const ProductDetail = () => {
                       </>
                     ) : null}
                   </ul>
+                </div>
+                
+                <div className="space-y-4">
+                  <h2 className="text-xl font-bold">Select Options</h2>
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="language" className="block text-sm font-medium">
+                        Language
+                      </Label>
+                      <Select
+                        value={selectedLanguage}
+                        onValueChange={setSelectedLanguage}
+                      >
+                        <SelectTrigger id="language" className="w-full">
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {languages.map((language) => (
+                            <SelectItem key={language.value} value={language.value} className="flex items-center">
+                              <div className="flex items-center">
+                                <img src={language.flag} alt={language.label} className="w-4 h-4 mr-2" />
+                                <span>{language.label}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="quantity" className="block text-sm font-medium">
+                        Quantity
+                      </Label>
+                      <Select
+                        value={quantity.toString()}
+                        onValueChange={(value) => setQuantity(Number(value))}
+                      >
+                        <SelectTrigger id="quantity" className="w-full">
+                          <SelectValue placeholder="Select quantity" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5].map((num) => (
+                            <SelectItem key={num} value={num.toString()}>
+                              {num}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="text-3xl font-bold">{formatCurrency(product.price)}</div>
+                    <Button 
+                      size="lg" 
+                      className=""
+                      onClick={handleAddToCart}
+                    >
+                      <ShoppingCart className="mr-2 h-5 w-5" />
+                      Add to Cart
+                    </Button>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Zap className="h-4 w-4 text-primary" />
+                      <span>Instant digital delivery</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                      <span>24/7 Support via Discord and Telegram</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -371,92 +456,6 @@ const ProductDetail = () => {
                 </div>
               </div>
             </motion.div>
-            
-            {/* Purchase Box - 2 cols */}
-            <motion.div 
-              initial="hidden"
-              animate="visible"
-              variants={fadeIn}
-              className="lg:col-span-2"
-            >
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md sticky top-6 glass-morphism">
-                <div className="space-y-6">
-                  <div className="flex justify-between items-baseline">
-                    <div className="text-3xl font-bold">{formatCurrency(product.price)}</div>
-                    <div className="text-sm text-muted-foreground">Digital Product</div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label htmlFor="language" className="block text-sm font-medium">
-                        Select Language
-                      </label>
-                      <Select
-                        value={selectedLanguage}
-                        onValueChange={setSelectedLanguage}
-                      >
-                        <SelectTrigger id="language" className="w-full">
-                          <SelectValue placeholder="Select language" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {languages.map((language) => (
-                            <SelectItem key={language.value} value={language.value} className="flex items-center">
-                              <span className="mr-2">{language.flag}</span>
-                              <span>{language.label}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label htmlFor="quantity" className="block text-sm font-medium">
-                        Quantity
-                      </label>
-                      <select
-                        id="quantity"
-                        value={quantity}
-                        onChange={(e) => setQuantity(Number(e.target.value))}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        {[1, 2, 3, 4, 5].map((num) => (
-                          <option key={num} value={num}>
-                            {num}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    size="lg" 
-                    className="w-full"
-                    onClick={handleAddToCart}
-                  >
-                    <ShoppingCart className="mr-2 h-5 w-5" />
-                    Add to Cart
-                  </Button>
-                  
-                  <div className="border-t pt-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Zap className="h-4 w-4 text-primary" />
-                      <span>Instant digital delivery</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm mt-2">
-                      <Shield className="h-4 w-4 text-primary" />
-                      <span>Secure payment & 30-day guarantee</span>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-primary/5 p-4 rounded-lg mt-4 border border-primary/10">
-                    <h3 className="font-bold text-sm">🔥 LIMITED TIME OFFER</h3>
-                    <p className="text-sm mt-1">
-                      50% discount applied automatically at checkout. Hurry, offer ends soon!
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
           </div>
         </div>
       </main>
@@ -465,5 +464,16 @@ const ProductDetail = () => {
     </div>
   );
 };
+
+const Label = React.forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLLabelElement>>(
+  ({ className, ...props }, ref) => (
+    <label 
+      ref={ref} 
+      className={`block text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className}`} 
+      {...props} 
+    />
+  )
+);
+Label.displayName = "Label";
 
 export default ProductDetail;
