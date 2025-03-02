@@ -1,108 +1,152 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useStore, Product, formatCurrency } from '@/lib/store';
+import { useStore, Product } from '@/lib/store';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { ShoppingCart, Star, Eye, Heart } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.5 }
+  },
+  exit: { 
+    opacity: 0, 
+    y: -20, 
+    transition: { duration: 0.3 } 
+  }
+};
 
 interface ProductCardProps {
   product: Product;
-  featured?: boolean;
 }
 
-const ProductCard = ({ product, featured = false }: ProductCardProps) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { dispatch } = useStore();
+  const { toast } = useToast();
   
-  const handleAddToCart = () => {
-    if (product.variants && product.variants.length > 0) {
-      dispatch({
-        type: 'ADD_TO_CART',
-        payload: {
-          id: product.id,
-          quantity: 1
-        }
-      });
-    }
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    dispatch({
+      type: 'ADD_TO_CART',
+      payload: {
+        id: product.id,
+        quantity: 1
+      }
+    });
+    
+    toast({
+      title: 'Added to cart',
+      description: `${product.title} has been added to your cart.`,
+    });
   };
   
+  // Get first category for badge if product has categories
+  const firstCategory = product.categories && product.categories.length > 0 
+    ? product.categories[0] 
+    : null;
+  
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className={cn(
-        "group relative flex flex-col rounded-xl overflow-hidden bg-white border border-border transition-all duration-300 hover:shadow-md",
-        featured && "md:col-span-2 lg:flex-row"
-      )}
+    <motion.div 
+      variants={itemVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      layout
+      className="group h-full"
     >
-      <div 
-        className={cn(
-          "relative overflow-hidden",
-          featured ? "lg:w-1/2" : "aspect-[4/3]"
-        )}
+      <Link 
+        to={`/product/${product.id}`}
+        className="glass-card flex flex-col h-full overflow-hidden group-hover:shadow-md transition-shadow"
       >
-        <img 
-          src={product.image || '/placeholder.svg'} 
-          alt={product.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        {product.featured && (
-          <Badge 
-            className="absolute top-3 left-3 bg-primary text-white font-medium shadow-md"
-            variant="secondary"
-          >
-            Featured
-          </Badge>
-        )}
-      </div>
-      
-      <div className={cn(
-        "flex flex-col p-4",
-        featured && "lg:w-1/2 lg:p-6"
-      )}>
-        <div className="flex-1">
-          <div className="flex gap-2 mb-1">
-            {product.categories && product.categories.map((category) => (
-              <Badge key={category} variant="outline" className="text-xs">
-                {category}
-              </Badge>
-            ))}
+        {/* Product Image */}
+        <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
+          <img 
+            src={product.image || '/placeholder.svg'} 
+            alt={product.title}
+            className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
+          />
+          
+          {/* Featured Badge */}
+          {product.featured && (
+            <div className="absolute top-2 left-2">
+              <Badge variant="default" className="bg-primary">Featured</Badge>
+            </div>
+          )}
+          
+          {/* Category Badge */}
+          {firstCategory && (
+            <div className="absolute top-2 right-2">
+              <Badge variant="secondary">{firstCategory}</Badge>
+            </div>
+          )}
+          
+          {/* Action Buttons */}
+          <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-2 p-3 bg-gradient-to-t from-gray-900/70 to-transparent translate-y-full group-hover:translate-y-0 transition-transform">
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full h-9 w-9" 
+              title="View"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full h-9 w-9" 
+              title="Add to favorites"
+            >
+              <Heart className="h-4 w-4" />
+            </Button>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full h-9 w-9" 
+              title="Add to cart"
+              onClick={handleAddToCart}
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </Button>
           </div>
-          <h3 className="text-lg font-semibold leading-tight mb-2">
-            {product.title}
-          </h3>
-          <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-            {product.description}
-          </p>
-          <p className="font-semibold text-lg mb-4">
-            {formatCurrency(product.price)}
-          </p>
         </div>
         
-        <div className="flex items-center gap-3 mt-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1"
-            onClick={handleAddToCart}
-          >
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            Add to Cart
-          </Button>
-          <Button 
-            asChild
-            size="sm" 
-            className="flex-1"
-          >
-            <Link to={`/products/${product.id}`}>
-              View Details
-            </Link>
-          </Button>
+        {/* Product Content */}
+        <div className="flex flex-col flex-1 p-4">
+          <div className="mb-2 flex items-center text-amber-500">
+            <Star className="h-4 w-4 fill-current" />
+            <Star className="h-4 w-4 fill-current" />
+            <Star className="h-4 w-4 fill-current" />
+            <Star className="h-4 w-4 fill-current" />
+            <Star className="h-4 w-4 fill-current" />
+            <span className="text-xs text-muted-foreground ml-1">(5.0)</span>
+          </div>
+          
+          <h3 className="font-medium mb-1 group-hover:text-primary transition-colors">{product.title}</h3>
+          
+          <p className="text-sm text-muted-foreground mb-4 line-clamp-2 flex-1">{product.description}</p>
+          
+          <div className="flex items-center justify-between mt-auto">
+            <span className="font-bold text-lg">${product.price.toFixed(2)}</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleAddToCart}
+              className="group-hover:bg-primary group-hover:text-white transition-colors"
+            >
+              <ShoppingCart className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          </div>
         </div>
-      </div>
+      </Link>
     </motion.div>
   );
 };

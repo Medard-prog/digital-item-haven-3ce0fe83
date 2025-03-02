@@ -1,15 +1,76 @@
-
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { ChevronRight, BarChart3, BookOpen, ShieldCheck, Award } from 'lucide-react';
+import { 
+  ArrowRight, 
+  BookOpen, 
+  TrendingUp, 
+  LineChart, 
+  PieChart, 
+  BarChart, 
+  User, 
+  Shield, 
+  Clock, 
+  MessageCircle, 
+  CheckCircle2,
+  Star
+} from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import FeaturedProducts from '@/components/FeaturedProducts';
+import { Button } from '@/components/ui/button';
+import { useStore } from '@/lib/store';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5 }
+  }
+};
+
+const testimonials = [
+  {
+    id: 1,
+    name: "Michael Thompson",
+    title: "Professional Forex Trader",
+    content: "The SMC course completely changed my approach to trading. I've been consistently profitable for 6 months now after struggling for years. The market structure concepts were a game-changer for me.",
+    rating: 5,
+    image: "https://randomuser.me/api/portraits/men/32.jpg"
+  },
+  {
+    id: 2,
+    name: "Sarah Johnson",
+    title: "Day Trader",
+    content: "I was skeptical at first, but the ICT methodology taught in these courses helped me identify high-probability setups I was missing before. My win rate has improved from 45% to nearly 70%.",
+    rating: 5,
+    image: "https://randomuser.me/api/portraits/women/44.jpg"
+  },
+  {
+    id: 3,
+    name: "David Chen",
+    title: "Swing Trader",
+    content: "The trading psychology material alone is worth the price. Learning to manage my emotions and develop a proper mindset has been transformative. I no longer overtrade or chase losses.",
+    rating: 5,
+    image: "https://randomuser.me/api/portraits/men/52.jpg"
+  }
+];
 
 const Index = () => {
-  const navigate = useNavigate();
+  const { state } = useStore();
+  const featuredProducts = state.products.filter(product => product.featured);
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -17,284 +78,285 @@ const Index = () => {
       
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="py-16 lg:py-32 bg-gradient-to-b from-white to-secondary/30 relative overflow-hidden">
-          <div className="container px-4 mx-auto relative z-10">
-            <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6 }}
-                className="flex-1 max-w-2xl"
-              >
-                <div className="inline-block mb-4">
-                  <div className="flex items-center space-x-2 bg-secondary px-3 py-1 rounded-full">
-                    <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
-                    <span className="text-sm font-medium">Premium Trading Knowledge</span>
-                  </div>
-                </div>
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-                  Master the Markets with <span className="text-primary">Professional</span> Trading Guides
-                </h1>
-                <p className="text-lg text-muted-foreground mb-8 max-w-xl">
-                  Elevate your trading skills with our premium collection of SMC and ICT methodology guides, crafted by professional traders for serious market participants.
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  <Button 
-                    size="lg" 
-                    onClick={() => navigate('/products')}
-                    className="gap-2"
-                  >
-                    Browse Products
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="lg"
-                    onClick={() => navigate('/products?category=Featured')}
-                  >
-                    View Featured Resources
-                  </Button>
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="flex-1 w-full lg:max-w-[550px]"
-              >
-                <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-                  <img 
-                    src="https://images.unsplash.com/photo-1579532537598-459ecdaf39cc?q=80&w=1000" 
-                    alt="Trading charts and analysis" 
-                    className="w-full aspect-[4/3] object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                  <div className="absolute bottom-0 left-0 p-6">
-                    <p className="text-white font-medium text-lg mb-2">Join thousands of traders</p>
-                    <p className="text-white/80 text-sm max-w-sm">
-                      Our comprehensive guides have helped traders from over 40 countries master professional trading techniques
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
+        <section className="relative overflow-hidden bg-gradient-to-b from-purple-50 to-white dark:from-gray-900 dark:to-gray-800 py-20 md:py-32">
+          <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-300 to-transparent"></div>
+          
+          <div className="container mx-auto px-4 relative z-10">
+            <motion.div 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="max-w-3xl mx-auto text-center"
+            >
+              <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-purple-700 via-purple-500 to-purple-700 bg-clip-text text-transparent">
+                Master Smart Money Concepts & ICT Trading
+              </h1>
+              <p className="text-xl text-gray-700 dark:text-gray-300 mb-8 leading-relaxed">
+                Premium trading education resources that will transform your trading approach and help you understand how institutional traders move the markets.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button size="lg" asChild>
+                  <Link to="/products">
+                    Explore Resources
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" asChild>
+                  <a href="#testimonials">
+                    Read Testimonials
+                  </a>
+                </Button>
+              </div>
+            </motion.div>
           </div>
           
-          {/* Background Elements */}
-          <div className="absolute top-1/2 right-0 w-72 h-72 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-secondary/40 rounded-full translate-y-1/2 -translate-x-1/2 blur-3xl"></div>
+          {/* Decorative elements */}
+          <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-purple-200/30 dark:bg-purple-900/20 blur-3xl"></div>
+          <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-purple-200/30 dark:bg-purple-900/20 blur-3xl"></div>
         </section>
         
-        {/* Features Section */}
-        <section className="py-16 lg:py-24">
-          <div className="container px-4 mx-auto">
-            <div className="text-center max-w-3xl mx-auto mb-16">
-              <h2 className="text-3xl font-bold mb-4">Why Choose Our Trading Resources?</h2>
-              <p className="text-muted-foreground">
-                Our digital products are created by active professional traders with years of market experience, designed to transfer real-world knowledge effectively.
+        {/* Features Bento Grid */}
+        <section className="py-20 bg-white dark:bg-gray-900">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold mb-4">What You'll Learn</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Our trading resources cover everything from market structure to advanced order flow concepts
               </p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-100px" }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            >
+              {/* Main Feature */}
               <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                viewport={{ once: true }}
-                className="bg-white p-6 rounded-xl border border-border"
+                variants={itemVariants} 
+                className="bento-item md:col-span-2 md:row-span-2 glass-card"
               >
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <BarChart3 className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">Proven Strategies</h3>
-                <p className="text-muted-foreground">
-                  All methods and strategies are battle-tested in real market conditions across various timeframes.
-                </p>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                viewport={{ once: true }}
-                className="bg-white p-6 rounded-xl border border-border"
-              >
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                   <BookOpen className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Comprehensive Detail</h3>
+                <h3 className="text-xl font-bold mb-3">Smart Money Concepts</h3>
+                <p className="text-muted-foreground mb-4">
+                  Learn how institutional traders create liquidity and engineer price movements. Understand market structure, order blocks, liquidity grabs, fair value gaps, and imbalances - the concepts that drive price action.
+                </p>
+                <ul className="space-y-2 mb-6">
+                  <li className="flex items-start">
+                    <CheckCircle2 className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
+                    <span>Master FVG identification and exploitation</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
+                    <span>Understand how to locate premium and discount zones</span>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
+                    <span>Learn to identify and trade liquidity grabs</span>
+                  </li>
+                </ul>
+                <Button variant="outline" asChild className="mt-auto">
+                  <Link to="/products?category=SMC">
+                    Explore SMC Resources
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </motion.div>
+              
+              {/* Other Features */}
+              <motion.div variants={itemVariants} className="bento-item">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">ICT Methodology</h3>
                 <p className="text-muted-foreground">
-                  Our guides dive deep into SMC and ICT concepts with clear examples and practical applications.
+                  Master the Inner Circle Trader concepts, including breaker blocks, kill zones, and optimal trade entry techniques.
                 </p>
               </motion.div>
               
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                viewport={{ once: true }}
-                className="bg-white p-6 rounded-xl border border-border"
-              >
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <ShieldCheck className="h-6 w-6 text-primary" />
+              <motion.div variants={itemVariants} className="bento-item">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                  <LineChart className="h-5 w-5 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Quality Assurance</h3>
+                <h3 className="text-lg font-bold mb-2">Advanced Price Action</h3>
                 <p className="text-muted-foreground">
-                  All materials undergo rigorous review to ensure accuracy, clarity, and educational value.
+                  Learn to read raw price action like a professional and identify high-probability trade setups.
                 </p>
               </motion.div>
               
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-                viewport={{ once: true }}
-                className="bg-white p-6 rounded-xl border border-border"
-              >
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <Award className="h-6 w-6 text-primary" />
+              <motion.div variants={itemVariants} className="bento-item">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                  <PieChart className="h-5 w-5 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">Trader First Approach</h3>
+                <h3 className="text-lg font-bold mb-2">Psychology & Mindset</h3>
                 <p className="text-muted-foreground">
-                  Created by traders for traders with a focus on practical implementation rather than theory.
+                  Develop the mental fortitude needed to trade consistently and overcome emotional trading.
                 </p>
               </motion.div>
+              
+              <motion.div variants={itemVariants} className="bento-item">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
+                  <BarChart className="h-5 w-5 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">Risk Management</h3>
+                <p className="text-muted-foreground">
+                  Learn effective position sizing and risk management techniques to protect your capital.
+                </p>
+              </motion.div>
+            </motion.div>
+          </div>
+        </section>
+        
+        {/* Featured Products */}
+        <section className="py-20 bg-gradient-to-t from-purple-50 to-white dark:from-gray-900 dark:to-gray-800">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold mb-4">Featured Resources</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Our most popular trading courses and materials to accelerate your learning
+              </p>
+            </div>
+            
+            <FeaturedProducts products={featuredProducts} />
+            
+            <div className="text-center mt-12">
+              <Button size="lg" asChild>
+                <Link to="/products">View All Resources</Link>
+              </Button>
             </div>
           </div>
         </section>
         
-        {/* Featured Products Section */}
-        <FeaturedProducts />
-        
-        {/* Testimonials Section */}
-        <section className="py-16 lg:py-24 bg-secondary/30">
-          <div className="container px-4 mx-auto">
-            <div className="text-center max-w-3xl mx-auto mb-16">
-              <h2 className="text-3xl font-bold mb-4">What Our Customers Say</h2>
-              <p className="text-muted-foreground">
-                Thousands of traders have transformed their approach to the markets with our premium resources.
+        {/* Testimonials */}
+        <section id="testimonials" className="py-20 bg-white dark:bg-gray-900">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold mb-4">Trader Testimonials</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Hear from traders who have transformed their trading journey with our resources
               </p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                viewport={{ once: true }}
-                className="bg-white p-6 rounded-xl border border-border"
-              >
-                <div className="flex items-center mb-4">
-                  <div className="mr-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center font-bold text-primary">
-                      JD
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            >
+              {testimonials.map((testimonial) => (
+                <motion.div 
+                  key={testimonial.id}
+                  variants={itemVariants}
+                  className="glass-card p-6"
+                >
+                  <div className="flex items-center mb-4">
+                    <div className="h-12 w-12 rounded-full overflow-hidden mr-3">
+                      <img 
+                        src={testimonial.image} 
+                        alt={testimonial.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{testimonial.name}</h4>
+                      <p className="text-sm text-muted-foreground">{testimonial.title}</p>
                     </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold">John Doe</h4>
-                    <p className="text-sm text-muted-foreground">Forex Trader</p>
+                  
+                  <div className="flex mb-3 text-amber-500">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-4 w-4 fill-current" />
+                    ))}
                   </div>
-                </div>
-                <p className="text-muted-foreground mb-4">
-                  "The SMC Trading Fundamentals guide completely changed my approach to market analysis. The clarity of explanation is unmatched."
-                </p>
-                <div className="flex text-amber-400">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <svg key={star} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                  ))}
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                viewport={{ once: true }}
-                className="bg-white p-6 rounded-xl border border-border"
-              >
-                <div className="flex items-center mb-4">
-                  <div className="mr-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center font-bold text-primary">
-                      MS
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">Mary Smith</h4>
-                    <p className="text-sm text-muted-foreground">Crypto Trader</p>
-                  </div>
-                </div>
-                <p className="text-muted-foreground mb-4">
-                  "The ICT Strategy Blueprint is worth every penny. I've been trading for 5 years and still found numerous insights I hadn't considered."
-                </p>
-                <div className="flex text-amber-400">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <svg key={star} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                  ))}
-                </div>
-              </motion.div>
-              
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                viewport={{ once: true }}
-                className="bg-white p-6 rounded-xl border border-border"
-              >
-                <div className="flex items-center mb-4">
-                  <div className="mr-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center font-bold text-primary">
-                      RJ
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">Robert Johnson</h4>
-                    <p className="text-sm text-muted-foreground">Stock Trader</p>
-                  </div>
-                </div>
-                <p className="text-muted-foreground mb-4">
-                  "The Advanced Price Action Analysis guide has concepts I've never seen explained so clearly elsewhere. Truly exceptional value."
-                </p>
-                <div className="flex text-amber-400">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <svg key={star} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                    </svg>
-                  ))}
-                </div>
-              </motion.div>
+                  
+                  <p className="text-muted-foreground">
+                    "{testimonial.content}"
+                  </p>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </section>
+        
+        {/* Benefits */}
+        <section className="py-20 bg-gray-50 dark:bg-gray-800">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold mb-4">Why Choose SMCInsider</h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto">
+                Our resources are created by professional traders with years of experience
+              </p>
             </div>
+            
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+            >
+              <motion.div variants={itemVariants} className="text-center">
+                <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <User className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">Expert Traders</h3>
+                <p className="text-muted-foreground">
+                  Learn from professional traders with proven track records and years of market experience
+                </p>
+              </motion.div>
+              
+              <motion.div variants={itemVariants} className="text-center">
+                <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Shield className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">Lifetime Access</h3>
+                <p className="text-muted-foreground">
+                  Purchase once and get lifetime access to the resources including all future updates
+                </p>
+              </motion.div>
+              
+              <motion.div variants={itemVariants} className="text-center">
+                <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <Clock className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">24/7 Support</h3>
+                <p className="text-muted-foreground">
+                  Get answers to your questions anytime with our round-the-clock customer support
+                </p>
+              </motion.div>
+              
+              <motion.div variants={itemVariants} className="text-center">
+                <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <MessageCircle className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold mb-2">Community Access</h3>
+                <p className="text-muted-foreground">
+                  Join our exclusive community of traders to share ideas and grow together
+                </p>
+              </motion.div>
+            </motion.div>
           </div>
         </section>
         
         {/* CTA Section */}
-        <section className="py-16 lg:py-24">
-          <div className="container px-4 mx-auto">
-            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-8 md:p-12 lg:p-16 relative overflow-hidden">
-              <div className="relative z-10 max-w-2xl">
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Transform Your Trading?</h2>
-                <p className="text-lg text-muted-foreground mb-8">
-                  Discover our complete collection of premium trading resources and take your market analysis to the next level.
-                </p>
-                <Button 
-                  size="lg" 
-                  onClick={() => navigate('/products')}
-                  className="gap-2"
-                >
-                  Explore All Products
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              <div className="absolute right-0 bottom-0 opacity-10 translate-x-1/4 translate-y-1/4">
-                <svg width="350" height="350" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 6H3M18 12H6M15 18H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
+        <section className="py-20 bg-primary text-white">
+          <div className="container mx-auto px-4">
+            <div className="max-w-3xl mx-auto text-center">
+              <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Trading?</h2>
+              <p className="text-white/80 mb-8 text-lg">
+                Get access to premium trading resources and join thousands of successful traders who have mastered SMC and ICT concepts.
+              </p>
+              <Button size="lg" variant="secondary" asChild>
+                <Link to="/products">
+                  Explore All Resources
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
             </div>
           </div>
         </section>
