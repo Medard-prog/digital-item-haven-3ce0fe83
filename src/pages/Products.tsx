@@ -58,7 +58,8 @@ const Products = () => {
 
       if (productsError) throw productsError;
 
-      const formattedProducts = productsData.map(product => ({
+      // Transform Supabase data to match our Product type
+      const formattedProducts: Product[] = productsData.map(product => ({
         id: product.id,
         title: product.title,
         description: product.description,
@@ -71,17 +72,19 @@ const Products = () => {
       }));
 
       const allCategories = Array.from(new Set(
-        formattedProducts.flatMap(product => product.categories)
+        formattedProducts.flatMap(product => product.categories || [])
       )).sort();
 
       setCategories(allCategories);
       setProducts(formattedProducts);
       setFilteredProducts(formattedProducts);
       
-      // Update the global store
-      dispatch({
-        type: 'ADD_PRODUCT',
-        payload: formattedProducts
+      // Update the global store with each product individually
+      formattedProducts.forEach(product => {
+        dispatch({
+          type: 'ADD_PRODUCT',
+          payload: product
+        });
       });
 
     } catch (err: any) {
@@ -125,7 +128,7 @@ const Products = () => {
       
       if (selectedCategories.length > 0) {
         filtered = filtered.filter(product => 
-          product.categories.some(category => selectedCategories.includes(category))
+          product.categories && product.categories.some(category => selectedCategories.includes(category))
         );
       }
       
