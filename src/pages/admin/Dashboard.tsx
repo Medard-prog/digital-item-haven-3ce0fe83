@@ -4,7 +4,8 @@ import AdminLayout from '@/components/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ChartContainer, LineChart } from '@/components/ui/chart';
+import { ChartContainer } from '@/components/ui/chart';
+import { Line } from 'recharts';
 import { UserRound, Package, ShoppingCart, DollarSign, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -28,18 +29,27 @@ const AdminDashboard = () => {
           { count: customerCount, error: customerError },
           { data: products, error: productsError },
           { data: orders, error: ordersError },
+          { data: profiles, error: profilesError }
         ] = await Promise.all([
           supabase.from('profiles').select('*', { count: 'exact', head: true }),
           supabase.from('products').select('*'),
-          supabase.from('orders').select('*, profiles(email)')
+          supabase.from('orders').select('*'),
+          supabase.from('profiles').select('id, email')
         ]);
         
         if (customerError) throw customerError;
         if (productsError) throw productsError;
         if (ordersError) throw ordersError;
+        if (profilesError) throw profilesError;
+        
+        // Create a map of profile IDs to emails for easy lookup
+        const profileMap = new Map();
+        profiles?.forEach(profile => {
+          profileMap.set(profile.id, profile.email);
+        });
         
         // Calculate total revenue
-        const totalRevenue = orders?.reduce((sum, order) => sum + parseFloat(order.total || 0), 0) || 0;
+        const totalRevenue = orders?.reduce((sum, order) => sum + (parseFloat(order.total) || 0), 0) || 0;
         
         // Get top products (mock data for now, would need order_items join in real implementation)
         const topProducts = products?.slice(0, 5).map(product => ({
@@ -48,11 +58,11 @@ const AdminDashboard = () => {
           sales: Math.floor(Math.random() * 50) + 1 // Mock sales data
         })) || [];
         
-        // Recent orders
+        // Recent orders - use profileMap to get email
         const recentOrders = orders?.slice(0, 5).map(order => ({
           id: order.id,
-          customer: order.profiles?.email || 'Unknown',
-          amount: parseFloat(order.total || 0).toFixed(2),
+          customer: profileMap.get(order.user_id) || 'Unknown',
+          amount: parseFloat(order.total || '0').toFixed(2),
           status: order.status,
           date: new Date(order.created_at).toLocaleDateString()
         })) || [];
@@ -86,6 +96,14 @@ const AdminDashboard = () => {
     { name: 'Jul', total: 3700 },
     { name: 'Aug', total: 4100 }
   ];
+
+  // Chart configuration
+  const chartConfig = {
+    total: {
+      label: 'Revenue',
+      color: '#0052CC'
+    }
+  };
   
   if (loading) {
     return (
@@ -168,14 +186,15 @@ const AdminDashboard = () => {
               <CardContent>
                 <ChartContainer
                   className="aspect-[4/3] sm:aspect-[16/9]"
+                  config={chartConfig}
                 >
-                  <LineChart
+                  <Line
                     data={chartData}
-                    categories={['total']}
-                    index="name"
-                    colors={['blue']}
-                    valueFormatter={(value) => `$${value}`}
-                    yAxisWidth={60}
+                    dataKey="total"
+                    stroke="#0052CC"
+                    strokeWidth={2}
+                    dot={{ strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
                   />
                 </ChartContainer>
               </CardContent>
