@@ -44,6 +44,7 @@ const Products = () => {
     setIsLoading(true);
     setError(null);
     try {
+      console.log("Fetching products from database...");
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select(`
@@ -57,6 +58,8 @@ const Products = () => {
         `);
 
       if (productsError) throw productsError;
+
+      console.log("Products fetched:", productsData?.length || 0);
 
       // Transform Supabase data to match our Product type
       const formattedProducts: Product[] = productsData.map(product => ({

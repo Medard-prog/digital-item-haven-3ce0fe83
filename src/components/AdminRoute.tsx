@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAdmin, isLoading } = useAuth();
+  const { isAdmin, isLoading, refreshSession } = useAuth();
   const [localLoading, setLocalLoading] = useState(true);
 
   // Introduce a timeout to stop waiting for isLoading if it takes too long
@@ -14,9 +14,19 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     
     if (isLoading) {
       timeoutId = setTimeout(() => {
-        console.log("AdminRoute - Loading timeout reached");
-        setLocalLoading(false);
-      }, 2000); // Wait max 2 seconds
+        console.log("AdminRoute - Still loading after 2s, refreshing session");
+        refreshSession(); // Try to refresh the session
+        
+        // Set another timeout if still not resolved
+        const secondTimeoutId = setTimeout(() => {
+          console.log("AdminRoute - Loading timeout reached");
+          setLocalLoading(false);
+        }, 2000); // Wait another 2 seconds after refresh attempt
+        
+        return () => {
+          if (secondTimeoutId) clearTimeout(secondTimeoutId);
+        };
+      }, 2000); // Wait initial 2 seconds
     } else {
       setLocalLoading(false);
     }
@@ -24,7 +34,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [isLoading]);
+  }, [isLoading, refreshSession]);
 
   // Add debug console log
   console.log("AdminRoute - isAdmin:", isAdmin, "isLoading:", isLoading, "localLoading:", localLoading);

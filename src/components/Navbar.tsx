@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import CartDrawer from './CartDrawer';
+import { useToast } from '@/hooks/use-toast';
 
 const Navbar = () => {
   const { state } = useStore();
@@ -33,6 +34,7 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   const cartItemsCount = state.cart.items.reduce(
     (total, item) => total + item.quantity, 
@@ -43,8 +45,19 @@ const Navbar = () => {
   const closeMenu = () => setIsMenuOpen(false);
   
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+    try {
+      await signOut();
+      navigate('/');
+      toast({
+        title: "Signed out successfully",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error signing out",
+        description: error.message,
+      });
+    }
   };
   
   const userInitials = user?.email 

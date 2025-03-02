@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
+import UserSidebar from '@/components/UserSidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +11,7 @@ const Dashboard = () => {
   const { user, isLoading } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -47,6 +47,21 @@ const Dashboard = () => {
         }
         
         setProfile(data);
+        
+        // Also fetch recent orders
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select('*, order_items(*, products(title, image_url))')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(3);
+        
+        if (ordersError) {
+          console.error('Error loading orders:', ordersError);
+        } else {
+          setRecentOrders(ordersData || []);
+        }
+        
       } catch (error) {
         console.error('Error loading profile:', error);
         
@@ -70,26 +85,21 @@ const Dashboard = () => {
   
   if (isLoading || isProfileLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
+      <UserSidebar>
+        <div className="flex-1 flex items-center justify-center min-h-screen">
           <div className="text-center">
             <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
             <h2 className="text-xl font-semibold mb-2">Loading Dashboard</h2>
             <p className="text-muted-foreground">Please wait while we load your information...</p>
           </div>
         </div>
-        <Footer />
-      </div>
+      </UserSidebar>
     );
   }
   
-  // Simple version for development/placeholder
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      <Navbar />
-      
-      <main className="flex-1 container mx-auto px-4 py-8">
+    <UserSidebar>
+      <main className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
         
         <div className="grid gap-6 md:grid-cols-2">
@@ -120,20 +130,40 @@ const Dashboard = () => {
               <CardDescription>View your recent orders</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground mb-4">You have no recent purchases.</p>
-              <button 
-                className="text-primary hover:underline"
-                onClick={() => navigate('/products')}
-              >
-                Browse Products
-              </button>
+              {recentOrders.length > 0 ? (
+                <div className="space-y-4">
+                  {recentOrders.map(order => (
+                    <div key={order.id} className="border-b pb-3">
+                      <p className="text-sm text-muted-foreground">
+                        Order #{order.id.substring(0, 8)} - {new Date(order.created_at).toLocaleDateString()}
+                      </p>
+                      <p className="font-medium">${parseFloat(order.total).toFixed(2)}</p>
+                      <p className="text-sm capitalize">{order.status}</p>
+                    </div>
+                  ))}
+                  <button 
+                    className="text-primary hover:underline"
+                    onClick={() => navigate('/purchases')}
+                  >
+                    View All Purchases
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-muted-foreground mb-4">You have no recent purchases.</p>
+                  <button 
+                    className="text-primary hover:underline"
+                    onClick={() => navigate('/products')}
+                  >
+                    Browse Products
+                  </button>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
       </main>
-      
-      <Footer />
-    </div>
+    </UserSidebar>
   );
 };
 

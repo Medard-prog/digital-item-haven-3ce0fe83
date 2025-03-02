@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AdminLayout from '@/components/AdminLayout';
 import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -373,199 +374,202 @@ const ProductsManager = () => {
   
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-12 h-[80vh] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-16 w-16 animate-spin mx-auto mb-6 text-primary" />
-          <h2 className="text-2xl font-bold mb-4">Loading Products</h2>
-          <p className="text-muted-foreground">Please wait while we fetch the product data...</p>
+      <AdminLayout>
+        <div className="container mx-auto px-4 py-12 h-[80vh] flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-16 w-16 animate-spin mx-auto mb-6 text-primary" />
+            <h2 className="text-2xl font-bold mb-4">Loading Products</h2>
+            <p className="text-muted-foreground">Please wait while we fetch the product data...</p>
+          </div>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
   
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Products Manager</h1>
-          <p className="text-muted-foreground">Manage your digital trading resources</p>
-        </div>
-        <Button className="mt-4 md:mt-0" onClick={handleAddNewProduct} disabled={isLoading}>
-          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-          Add New Product
-        </Button>
-      </div>
-      
-      <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products..."
-              className="pl-10"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+    <AdminLayout>
+      <div className="container mx-auto px-4 py-12">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">Products Manager</h1>
+            <p className="text-muted-foreground">Manage your digital trading resources</p>
           </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
+          <Button className="mt-4 md:mt-0" onClick={handleAddNewProduct} disabled={isLoading}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+            Add New Product
+          </Button>
+        </div>
+        
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products..."
+                className="pl-10"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                    <p className="text-muted-foreground mt-2">Loading products...</p>
-                  </TableCell>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ) : (
-                <>
-                  {filteredProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.title}</TableCell>
-                      <TableCell>${parseFloat(product.price).toFixed(2)}</TableCell>
-                      <TableCell>
-                        {product.featured ? (
-                          <Badge className="bg-primary hover:bg-primary/80">Featured</Badge>
-                        ) : (
-                          <Badge variant="outline">Standard</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleManageLanguages(product)}>
-                            <Languages className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDeleteProduct(product)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  
-                  {filteredProducts.length === 0 && !isLoading && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        No products found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <form onSubmit={handleDialogSubmit}>
-            <DialogHeader>
-              <DialogTitle>
-                {currentProduct && products.find(p => p.id === currentProduct.id) 
-                  ? 'Edit Product' 
-                  : 'Add New Product'
-                }
-              </DialogTitle>
-              <DialogDescription>
-                Fill in the details for your digital product
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label htmlFor="title" className="text-sm font-medium">Title</label>
-                <Input 
-                  id="title" 
-                  value={currentProduct?.title || ''} 
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  required
-                />
-              </div>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+                      <p className="text-muted-foreground mt-2">Loading products...</p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <>
+                    {filteredProducts.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-medium">{product.title}</TableCell>
+                        <TableCell>${parseFloat(product.price).toFixed(2)}</TableCell>
+                        <TableCell>
+                          {product.featured ? (
+                            <Badge className="bg-primary hover:bg-primary/80">Featured</Badge>
+                          ) : (
+                            <Badge variant="outline">Standard</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleManageLanguages(product)}>
+                              <Languages className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDeleteProduct(product)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    
+                    {filteredProducts.length === 0 && !isLoading && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                          No products found
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <form onSubmit={handleDialogSubmit}>
+              <DialogHeader>
+                <DialogTitle>
+                  {currentProduct && products.find(p => p.id === currentProduct.id) 
+                    ? 'Edit Product' 
+                    : 'Add New Product'
+                  }
+                </DialogTitle>
+                <DialogDescription>
+                  Fill in the details for your digital product
+                </DialogDescription>
+              </DialogHeader>
               
-              <div className="space-y-2">
-                <label htmlFor="description" className="text-sm font-medium">Description</label>
-                <Textarea 
-                  id="description" 
-                  value={currentProduct?.description || ''} 
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="price" className="text-sm font-medium">Price ($)</label>
-                <Input 
-                  id="price" 
-                  type="number" 
-                  min="0" 
-                  step="0.01" 
-                  value={currentProduct?.price || ''} 
-                  onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="image" className="text-sm font-medium">Image URL</label>
-                <Input 
-                  id="image" 
-                  value={currentProduct?.image_url || ''} 
-                  onChange={(e) => handleInputChange('image_url', e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="featured" 
-                  checked={currentProduct?.featured || false} 
-                  onCheckedChange={(checked) => handleInputChange('featured', !!checked)}
-                />
-                <label htmlFor="featured" className="text-sm font-medium">
-                  Featured Product
-                </label>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Features</label>
-                  <Button type="button" variant="outline" size="sm" onClick={addFeature}>
-                    <Plus className="h-4 w-4" />
-                    Add Feature
-                  </Button>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label htmlFor="title" className="text-sm font-medium">Title</label>
+                  <Input 
+                    id="title" 
+                    value={currentProduct?.title || ''} 
+                    onChange={(e) => handleInputChange('title', e.target.value)}
+                    required
+                  />
                 </div>
                 
-                {currentProduct?.features?.map((feature: string, index: number) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <Input 
-                      value={feature} 
-                      onChange={(e) => handleFeatureChange(index, e.target.value)}
-                      placeholder={`Feature ${index + 1}`}
-                    />
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => removeFeature(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
+                <div className="space-y-2">
+                  <label htmlFor="description" className="text-sm font-medium">Description</label>
+                  <Textarea 
+                    id="description" 
+                    value={currentProduct?.description || ''} 
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="price" className="text-sm font-medium">Price ($)</label>
+                  <Input 
+                    id="price" 
+                    type="number" 
+                    min="0" 
+                    step="0.01" 
+                    value={currentProduct?.price || ''} 
+                    onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="image" className="text-sm font-medium">Image URL</label>
+                  <Input 
+                    id="image" 
+                    value={currentProduct?.image_url || ''} 
+                    onChange={(e) => handleInputChange('image_url', e.target.value)}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="featured" 
+                    checked={currentProduct?.featured || false} 
+                    onCheckedChange={(checked) => handleInputChange('featured', !!checked)}
+                  />
+                  <label htmlFor="featured" className="text-sm font-medium">
+                    Featured Product
+                  </label>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Features</label>
+                    <Button type="button" variant="outline" size="sm" onClick={addFeature}>
+                      <Plus className="h-4 w-4" />
+                      Add Feature
+                    </Button>
+                  </div>
+                  
+                  {currentProduct?.features?.map((feature: string, index: number) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <Input 
+                        value={feature} 
+                        onChange={(e) => handleFeatureChange(index, e.target.value)}
+                        placeholder={`Feature ${index + 1}`}
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => removeFeature(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
@@ -652,6 +656,7 @@ const ProductsManager = () => {
         </DialogContent>
       </Dialog>
     </div>
+  </AdminLayout>
   );
 };
 

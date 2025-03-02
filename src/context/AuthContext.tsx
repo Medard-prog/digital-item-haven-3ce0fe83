@@ -84,51 +84,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  useEffect(() => {
-    // Initial session check
-    refreshSession();
-    
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state changed:", event, session ? "session exists" : "no session");
-        if (session?.user) {
-          setUser(session.user);
-          
-          // Fetch user profile to determine admin status
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('is_admin')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (profileError) {
-            console.error('Error fetching profile:', profileError);
-            setIsAdmin(false);
-          } else {
-            setIsAdmin(profileData?.is_admin || false);
-          }
-        } else {
-          // For development, create a fake user and admin status
-          if (process.env.NODE_ENV === 'development') {
-            console.log("Development mode: setting mock user on auth change");
-            setUser({ id: 'dev-user-id', email: 'dev@example.com' });
-            setIsAdmin(true);
-          } else {
-            setUser(null);
-            setIsAdmin(false);
-          }
-        }
-        setIsLoading(false);
-        setInitialCheckDone(true);
-      }
-    );
-    
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
   // Add signOut function
   const signOut = async () => {
     try {
@@ -241,6 +196,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Initial session check
+    refreshSession();
+    
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log("Auth state changed:", event, session ? "session exists" : "no session");
+        if (session?.user) {
+          setUser(session.user);
+          
+          // Fetch user profile to determine admin status
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileError) {
+            console.error('Error fetching profile:', profileError);
+            setIsAdmin(false);
+          } else {
+            setIsAdmin(profileData?.is_admin || false);
+          }
+        } else {
+          // For development, create a fake user and admin status
+          if (process.env.NODE_ENV === 'development') {
+            console.log("Development mode: setting mock user on auth change");
+            setUser({ id: 'dev-user-id', email: 'dev@example.com' });
+            setIsAdmin(true);
+          } else {
+            setUser(null);
+            setIsAdmin(false);
+          }
+        }
+        setIsLoading(false);
+        setInitialCheckDone(true);
+      }
+    );
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Important: For development, if the loading state persists for too long, force it to false
   useEffect(() => {
