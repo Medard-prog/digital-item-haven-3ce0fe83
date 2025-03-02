@@ -27,7 +27,7 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
   const { toast } = useToast();
   
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -48,10 +48,42 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     });
   };
   
+  const handleAddToFavorites = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const isFavorite = state.favorites.includes(product.id);
+    
+    if (isFavorite) {
+      dispatch({
+        type: 'REMOVE_FROM_FAVORITES',
+        payload: product.id
+      });
+      
+      toast({
+        title: 'Removed from favorites',
+        description: `${product.title} has been removed from your favorites.`,
+      });
+    } else {
+      dispatch({
+        type: 'ADD_TO_FAVORITES',
+        payload: product.id
+      });
+      
+      toast({
+        title: 'Added to favorites',
+        description: `${product.title} has been added to your favorites.`,
+      });
+    }
+  };
+  
   // Get first category for badge if product has categories
   const firstCategory = product.categories && product.categories.length > 0 
     ? product.categories[0] 
     : null;
+  
+  // Check if product is in favorites
+  const isFavorite = state.favorites.includes(product.id);
   
   return (
     <motion.div 
@@ -64,7 +96,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     >
       <Link 
         to={`/product/${product.id}`}
-        className="glass-card flex flex-col h-full overflow-hidden group-hover:shadow-md transition-shadow"
+        className="glass-card flex flex-col h-full overflow-hidden group-hover:shadow-md transition-shadow rounded-lg"
       >
         {/* Product Image */}
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
@@ -102,9 +134,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               size="icon" 
               variant="ghost" 
               className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full h-9 w-9" 
-              title="Add to favorites"
+              title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+              onClick={handleAddToFavorites}
             >
-              <Heart className="h-4 w-4" />
+              <Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
             </Button>
             <Button 
               size="icon" 

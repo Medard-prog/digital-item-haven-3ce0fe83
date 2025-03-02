@@ -17,9 +17,9 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
     
     if (isLoading) {
       timeoutId = setTimeout(() => {
-        console.log("PrivateRoute - Loading timeout reached, forcing completion");
+        console.log("Force ending loading state after timeout");
         setLocalLoading(false);
-      }, 2000); // 2 second timeout
+      }, 1500); // 1.5 second timeout - reduced from 2 seconds for better UX
     } else {
       setLocalLoading(false);
     }
