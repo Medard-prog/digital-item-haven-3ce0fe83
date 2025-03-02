@@ -12,63 +12,86 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { Download, Package, Heart, Settings, LayoutDashboard, History, ShoppingBag, FileText } from 'lucide-react';
+import { Download, Package, Heart, Settings, LayoutDashboard, History, ShoppingBag, FileText, Users, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
   const { user } = useAuth();
   const { state } = useStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [totalSpent, setTotalSpent] = useState(0);
   
   useEffect(() => {
-    // Simulate loading of user data
-    const timer = setTimeout(() => {
+    if (user) {
+      fetchUserPurchases();
+    } else {
       setIsLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    }
+  }, [user]);
+  
+  const fetchUserPurchases = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch orders for this user
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user?.id);
+      
+      if (ordersError) throw ordersError;
+      
+      // For each order, fetch the order items with product details
+      const purchasesWithDetails = [];
+      let totalAmount = 0;
+      
+      for (const order of orders || []) {
+        const { data: orderItems, error: itemsError } = await supabase
+          .from('order_items')
+          .select('*, products(*)')
+          .eq('order_id', order.id);
+        
+        if (itemsError) throw itemsError;
+        
+        // Add each order item as a purchase
+        for (const item of orderItems || []) {
+          purchasesWithDetails.push({
+            id: item.id,
+            productName: item.products?.title || 'Unknown Product',
+            date: order.created_at,
+            price: parseFloat(item.price),
+            status: order.status,
+            downloadLink: '#', // In a real app, generate download links
+            quantity: item.quantity,
+            productId: item.product_id
+          });
+          
+          totalAmount += parseFloat(item.price) * item.quantity;
+        }
+      }
+      
+      setPurchases(purchasesWithDetails);
+      setTotalSpent(totalAmount);
+    } catch (error) {
+      console.error('Error fetching purchases:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
   };
   
-  // Mocked purchases data (in a real app, this would come from an API)
-  const purchases = [
-    {
-      id: '1',
-      productName: 'Smart Money Concepts Masterclass',
-      date: '2023-10-15',
-      price: 199.99,
-      status: 'completed',
-      downloadLink: '#'
-    },
-    {
-      id: '2',
-      productName: 'ICT Trading Framework',
-      date: '2023-09-22',
-      price: 149.99,
-      status: 'completed',
-      downloadLink: '#'
-    },
-    {
-      id: '3',
-      productName: 'Advanced Price Action Course',
-      date: '2023-08-05',
-      price: 99.99,
-      status: 'completed',
-      downloadLink: '#'
-    }
-  ];
-  
-  // Mocked favorites
+  // Mocked favorites from store (in a real app, fetch from database)
   const favorites = state.products.slice(0, 2);
   
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-r-transparent"></div>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
           <p className="mt-4 text-muted-foreground">Loading your dashboard...</p>
         </div>
       </div>
@@ -80,7 +103,7 @@ const Dashboard = () => {
       <Navbar />
       
       <main className="flex-1 py-10">
-        <div className="content-container">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
             animate="visible"
@@ -131,7 +154,7 @@ const Dashboard = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="text-3xl font-bold">
-                        ${purchases.reduce((sum, purchase) => sum + purchase.price, 0).toFixed(2)}
+                        ${totalSpent.toFixed(2)}
                       </div>
                     </CardContent>
                   </Card>
@@ -185,7 +208,7 @@ const Dashboard = () => {
                   <Card className="glass-morphism">
                     <CardHeader>
                       <CardTitle className="flex items-center">
-                        <FileText className="mr-2 h-5 w-5" /> Learning Resources
+                        <FileText className="mr-2 h-5 w-5" /> Community
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -193,18 +216,7 @@ const Dashboard = () => {
                         <div className="space-y-4">
                           <div className="p-4 border rounded-lg">
                             <h4 className="font-medium flex items-center">
-                              <Package className="mr-2 h-4 w-4" /> Getting Started Guide
-                            </h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Learn how to make the most of your trading resources
-                            </p>
-                            <Button variant="link" className="px-0 py-0 h-auto mt-1">
-                              Read Guide
-                            </Button>
-                          </div>
-                          <div className="p-4 border rounded-lg">
-                            <h4 className="font-medium flex items-center">
-                              <Package className="mr-2 h-4 w-4" /> Trading Community
+                              <Users className="mr-2 h-4 w-4" /> Trading Community
                             </h4>
                             <p className="text-sm text-muted-foreground mt-1">
                               Join our community of traders to share insights
@@ -220,12 +232,7 @@ const Dashboard = () => {
                                 Discord
                               </Button>
                               <Button variant="outline" size="sm" className="h-8 gap-1">
-                                <svg className="h-4 w-4" viewBox="0 0 24 24">
-                                  <path
-                                    fill="currentColor"
-                                    d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm0 2c5.514 0 10 4.486 10 10s-4.486 10-10 10-10-4.486-10-10 4.486-10 10-10zm2.692 14.889c.161.011.32.019.466.019.606 0 1.072-.17 1.374-.509.303-.339.455-.798.455-1.378 0-.297-.067-.556-.2-.777-.134-.222-.321-.39-.563-.507.178-.143.317-.317.418-.523.101-.205.151-.455.151-.748 0-.53-.167-.947-.5-1.251-.333-.305-.822-.457-1.468-.457-.161 0-.328.012-.495.031v5.1zm.27-3.545h.271c.293 0 .5.07.624.211.123.14.183.33.183.569 0 .234-.059.415-.175.542-.118.126-.303.19-.558.19h-.345v-1.512zm-6.6 2.4v-4.4h-.933v5.1h2.933v-.7h-2zm2.79-4.4l-1.167 5.1h.967l.233-1.3h1.167l.233 1.3h.967l-1.167-5.1h-1.233zm.7 3.1h-.833l.433-2.433.4 2.433zm2.89-.855h.27c.306 0 .517.07.636.211.119.141.178.342.178.602 0 .25-.067.44-.2.568-.133.127-.328.191-.583.191h-.301v-1.572z"
-                                  />
-                                </svg>
+                                <img src="/icons/telegram.svg" alt="Telegram" className="h-4 w-4" />
                                 Telegram
                               </Button>
                             </div>
@@ -363,7 +370,7 @@ const Dashboard = () => {
                                 {product.description}
                               </p>
                               <div className="mt-2 font-bold">
-                                ${product.price.toFixed(2)}
+                                ${parseFloat(product.price).toFixed(2)}
                               </div>
                             </CardContent>
                             <CardFooter className="border-t pt-4 grid grid-cols-2 gap-2">

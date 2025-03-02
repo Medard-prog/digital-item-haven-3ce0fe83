@@ -10,15 +10,15 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Star,
   Check,
-  Download,
-  BookOpen,
   ArrowLeft,
   ShoppingCart,
   AlertTriangle,
-  Zap,
-  Globe,
-  Users,
-  MessageSquare
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Minus,
+  MessageSquare,
+  Globe
 } from 'lucide-react';
 import {
   Accordion,
@@ -33,6 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { supabase } from '@/integrations/supabase/client';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -42,16 +44,89 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [selectedLanguage, setSelectedLanguage] = useState('english');
+  const [availableLanguages, setAvailableLanguages] = useState<any[]>([]);
   const reviewsRef = useRef<HTMLDivElement>(null);
+  const [features, setFeatures] = useState<string[]>([]);
+  const [additionalImages, setAdditionalImages] = useState<string[]>([]);
   
   useEffect(() => {
-    // Simulate API call to fetch product
-    setTimeout(() => {
-      const foundProduct = state.products.find(p => p.id === id);
-      setProduct(foundProduct || null);
-      setLoading(false);
-    }, 500);
-  }, [id, state.products]);
+    const fetchProduct = async () => {
+      setLoading(true);
+      try {
+        // Fetch product details
+        const { data: productData, error: productError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (productError) throw productError;
+        
+        // Fetch product features
+        const { data: featuresData, error: featuresError } = await supabase
+          .from('product_features')
+          .select('*')
+          .eq('product_id', id)
+          .order('order_number', { ascending: true });
+        
+        if (featuresError) throw featuresError;
+        
+        // Fetch product language variants
+        const { data: variantsData, error: variantsError } = await supabase
+          .from('product_variants')
+          .select('*')
+          .eq('product_id', id);
+        
+        if (variantsError) throw variantsError;
+        
+        // Set product data
+        setProduct(productData);
+        
+        // Set features
+        setFeatures(featuresData.map((f: any) => f.feature));
+        
+        // Set languages
+        const langs = variantsData.map((v: any) => ({
+          value: v.name,
+          label: v.name.charAt(0).toUpperCase() + v.name.slice(1),
+          flag: `/flags/${v.name === 'english' ? 'gb' : v.name.substring(0, 2)}.svg`
+        }));
+        
+        // If no language variants, default to English
+        if (langs.length === 0) {
+          setAvailableLanguages([{
+            value: 'english',
+            label: 'English',
+            flag: '/flags/gb.svg'
+          }]);
+        } else {
+          setAvailableLanguages(langs);
+        }
+        
+        // Generate mock additional images for carousel
+        // In a real app, these would come from the database
+        if (productData.image_url) {
+          const mockImages = [
+            productData.image_url,
+            '/placeholder.svg',
+            '/placeholder.svg'
+          ];
+          setAdditionalImages(mockImages);
+        } else {
+          setAdditionalImages(['/placeholder.svg']);
+        }
+        
+      } catch (error) {
+        console.error('Error fetching product:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (id) {
+      fetchProduct();
+    }
+  }, [id]);
   
   const handleAddToCart = () => {
     if (product) {
@@ -71,19 +146,17 @@ const ProductDetail = () => {
     }
   };
   
+  const incrementQuantity = () => {
+    setQuantity(prev => prev + 1);
+  };
+  
+  const decrementQuantity = () => {
+    setQuantity(prev => (prev > 1 ? prev - 1 : 1));
+  };
+  
   const scrollToReviews = () => {
     reviewsRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-  
-  // Available languages with flags
-  const languages = [
-    { value: 'english', label: 'English', flag: '/flags/gb.svg' },
-    { value: 'spanish', label: 'Spanish', flag: '/flags/es.svg' },
-    { value: 'french', label: 'French', flag: '/flags/fr.svg' },
-    { value: 'german', label: 'German', flag: '/flags/de.svg' },
-    { value: 'japanese', label: 'Japanese', flag: '/flags/jp.svg' },
-    { value: 'chinese', label: 'Chinese', flag: '/flags/cn.svg' }
-  ];
   
   // Mock frequently asked questions
   const faqs = [
@@ -172,9 +245,9 @@ const ProductDetail = () => {
       <Navbar />
       
       <main className="flex-1 py-10">
-        <div className="content-container">
-          <div className="flex justify-start mb-6 w-full">
-            <Button variant="ghost" asChild className="mr-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-6">
+            <Button variant="ghost" asChild className="pl-0">
               <Link to="/products" className="flex items-center text-muted-foreground hover:text-foreground">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Products
@@ -182,40 +255,64 @@ const ProductDetail = () => {
             </Button>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
-            {/* Product Image - 2 cols */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
+            {/* Product Images - Left */}
             <motion.div 
               initial="hidden"
               animate="visible"
               variants={fadeIn}
-              className="lg:col-span-2"
+              className="relative"
             >
               <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md relative glass-morphism">
-                <div className="aspect-video w-full overflow-hidden">
-                  <img 
-                    src={product.image || '/placeholder.svg'} 
-                    alt={product.title}
-                    className="w-full h-full object-cover transition-transform hover:scale-105 duration-700"
-                  />
-                </div>
+                <Carousel>
+                  <CarouselContent>
+                    {additionalImages.map((src, index) => (
+                      <CarouselItem key={index}>
+                        <div className="aspect-video w-full overflow-hidden">
+                          <img 
+                            src={src} 
+                            alt={`${product.title} - image ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="left-2" />
+                  <CarouselNext className="right-2" />
+                </Carousel>
                 
                 <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-sm font-medium">
                   Digital Product
                 </div>
               </div>
+              
+              {/* Thumbnail navigation (for larger screens) */}
+              <div className="mt-4 hidden md:grid grid-cols-4 gap-2">
+                {additionalImages.map((src, index) => (
+                  <div 
+                    key={index}
+                    className={`aspect-video rounded-md overflow-hidden border-2 ${index === 0 ? 'border-primary' : 'border-transparent'} cursor-pointer hover:opacity-80 transition-all`}
+                  >
+                    <img 
+                      src={src} 
+                      alt={`${product.title} thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
             </motion.div>
             
-            {/* Product Description and Details - 3 cols */}
+            {/* Product Description and Details - Right */}
             <motion.div 
               initial="hidden"
               animate="visible"
               variants={fadeIn}
-              className="lg:col-span-3 space-y-8"
+              className="space-y-8"
             >
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md space-y-6 glass-morphism">
+              <div className="space-y-6">
                 <div>
-                  <h1 className="text-3xl font-bold mb-4">{product.title}</h1>
-                  
                   <div className="flex items-center gap-2 mb-4">
                     <div className="flex">
                       {[...Array(5)].map((_, i) => (
@@ -231,59 +328,37 @@ const ProductDetail = () => {
                     </button>
                   </div>
                   
+                  <h1 className="text-3xl font-bold mb-4">{product.title}</h1>
+                  
                   <div className="prose dark:prose-invert max-w-none">
                     <p className="text-lg mb-6 leading-relaxed">
                       {product.description}
                     </p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
-                      <div className="flex items-start">
-                        <div className="bg-primary/10 p-2 rounded-full mt-0.5">
-                          <Download className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="ml-3">
-                          <h3 className="font-medium">Instant Digital Delivery</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Immediate access after purchase
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start">
-                        <div className="bg-primary/10 p-2 rounded-full mt-0.5">
-                          <BookOpen className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="ml-3">
-                          <h3 className="font-medium">Comprehensive Material</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Detailed guide with examples
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start">
-                        <div className="bg-primary/10 p-2 rounded-full mt-0.5">
-                          <Globe className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="ml-3">
-                          <h3 className="font-medium">Multiple Languages</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Available in 6 languages
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start">
-                        <div className="bg-primary/10 p-2 rounded-full mt-0.5">
-                          <MessageSquare className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="ml-3">
-                          <h3 className="font-medium">24/7 Support</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Discord and Telegram support
-                          </p>
-                        </div>
-                      </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
+                  <div className="flex items-start">
+                    <div className="bg-primary/10 p-2 rounded-full mt-0.5">
+                      <Globe className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="font-medium">Multiple Languages</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Available in {availableLanguages.length} languages
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <div className="bg-primary/10 p-2 rounded-full mt-0.5">
+                      <MessageSquare className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="font-medium">24/7 Support</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Discord and Telegram support
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -292,14 +367,14 @@ const ProductDetail = () => {
                   <h2 className="text-xl font-bold">What You'll Learn</h2>
                   
                   <ul className="space-y-3">
-                    {product.features?.map((feature: string, index: number) => (
-                      <li key={index} className="flex items-start">
-                        <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                    
-                    {!product.features || product.features.length === 0 ? (
+                    {features.length > 0 ? (
+                      features.map((feature: string, index: number) => (
+                        <li key={index} className="flex items-start">
+                          <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                          <span>{feature}</span>
+                        </li>
+                      ))
+                    ) : (
                       <>
                         <li className="flex items-start">
                           <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -322,27 +397,31 @@ const ProductDetail = () => {
                           <span>Develop an institutional trader's mindset</span>
                         </li>
                       </>
-                    ) : null}
+                    )}
                   </ul>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="space-y-4 pt-4 border-t">
                   <h2 className="text-xl font-bold">Select Options</h2>
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="language" className="block text-sm font-medium">
+                      <label htmlFor="language" className="block text-sm font-medium">
                         Language
-                      </Label>
+                      </label>
                       <Select
                         value={selectedLanguage}
                         onValueChange={setSelectedLanguage}
                       >
                         <SelectTrigger id="language" className="w-full">
-                          <SelectValue placeholder="Select language" />
+                          <SelectValue placeholder="Select language">
+                            <div className="flex items-center">
+                              {availableLanguages.find(l => l.value === selectedLanguage)?.label || 'Select language'}
+                            </div>
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {languages.map((language) => (
-                            <SelectItem key={language.value} value={language.value} className="flex items-center">
+                          {availableLanguages.map((language) => (
+                            <SelectItem key={language.value} value={language.value}>
                               <div className="flex items-center">
                                 <img src={language.flag} alt={language.label} className="w-4 h-4 mr-2" />
                                 <span>{language.label}</span>
@@ -354,34 +433,38 @@ const ProductDetail = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="quantity" className="block text-sm font-medium">
+                      <label htmlFor="quantity" className="block text-sm font-medium">
                         Quantity
-                      </Label>
-                      <Select
-                        value={quantity.toString()}
-                        onValueChange={(value) => setQuantity(Number(value))}
-                      >
-                        <SelectTrigger id="quantity" className="w-full">
-                          <SelectValue placeholder="Select quantity" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5].map((num) => (
-                            <SelectItem key={num} value={num.toString()}>
-                              {num}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      </label>
+                      <div className="flex h-10 w-full rounded-md border border-input bg-background">
+                        <button
+                          type="button"
+                          className="flex items-center justify-center h-full aspect-square border-r border-input"
+                          onClick={decrementQuantity}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <div className="flex-1 flex items-center justify-center font-medium">
+                          {quantity}
+                        </div>
+                        <button
+                          type="button"
+                          className="flex items-center justify-center h-full aspect-square border-l border-input"
+                          onClick={incrementQuantity}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
                 
                 <div className="pt-4 border-t">
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                     <div className="text-3xl font-bold">{formatCurrency(product.price)}</div>
                     <Button 
                       size="lg" 
-                      className=""
+                      className="w-full sm:w-auto"
                       onClick={handleAddToCart}
                     >
                       <ShoppingCart className="mr-2 h-5 w-5" />
@@ -389,71 +472,92 @@ const ProductDetail = () => {
                     </Button>
                   </div>
                   
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Zap className="h-4 w-4 text-primary" />
-                      <span>Instant digital delivery</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <MessageSquare className="h-4 w-4 text-primary" />
-                      <span>24/7 Support via Discord and Telegram</span>
+                  <div className="flex flex-col gap-2 mt-4">
+                    <div className="flex gap-4 mt-4">
+                      <Button variant="outline" size="sm" className="h-8 gap-2">
+                        <svg className="h-4 w-4" viewBox="0 0 127.14 96.36">
+                          <path
+                            d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                        Discord Support
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-8 gap-2">
+                        <img src="/icons/telegram.svg" alt="Telegram" className="h-4 w-4" />
+                        Telegram Support
+                      </Button>
                     </div>
                   </div>
                 </div>
               </div>
+            </motion.div>
+          </div>
+          
+          {/* Full width sections */}
+          <div className="space-y-12">
+            {/* FAQs */}
+            <motion.div 
+              initial="hidden"
+              animate="visible"
+              variants={fadeIn}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md glass-morphism"
+            >
+              <h2 className="text-xl font-bold mb-4">Frequently Asked Questions</h2>
               
-              {/* FAQs */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md glass-morphism">
-                <h2 className="text-xl font-bold mb-4">Frequently Asked Questions</h2>
-                
-                <Accordion type="single" collapsible className="w-full">
-                  {faqs.map((faq, index) => (
-                    <AccordionItem key={index} value={`item-${index}`}>
-                      <AccordionTrigger className="text-left font-medium">
-                        {faq.question}
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        {faq.answer}
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              </div>
+              <Accordion type="single" collapsible className="w-full">
+                {faqs.map((faq, index) => (
+                  <AccordionItem key={index} value={`item-${index}`}>
+                    <AccordionTrigger className="text-left font-medium">
+                      {faq.question}
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {faq.answer}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </motion.div>
+            
+            {/* Reviews */}
+            <motion.div 
+              initial="hidden"
+              animate="visible"
+              variants={fadeIn}
+              className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md glass-morphism" 
+              ref={reviewsRef}
+            >
+              <h2 className="text-xl font-bold mb-4">Customer Reviews</h2>
               
-              {/* Reviews */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md glass-morphism" ref={reviewsRef}>
-                <h2 className="text-xl font-bold mb-4">Customer Reviews</h2>
-                
-                <div className="space-y-6">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="border-b pb-6 last:border-b-0 last:pb-0">
-                      <div className="flex items-start">
-                        <img 
-                          src={review.avatar} 
-                          alt={review.name} 
-                          className="w-10 h-10 rounded-full mr-3"
-                        />
-                        <div>
-                          <h4 className="font-medium">{review.name}</h4>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="flex">
-                              {[...Array(5)].map((_, i) => (
-                                <Star 
-                                  key={i} 
-                                  className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
-                                />
-                              ))}
-                            </div>
-                            <span className="text-sm text-muted-foreground">
-                              {new Date(review.date).toLocaleDateString()}
-                            </span>
+              <div className="space-y-6">
+                {reviews.map((review) => (
+                  <div key={review.id} className="border-b pb-6 last:border-b-0 last:pb-0">
+                    <div className="flex items-start">
+                      <img 
+                        src={review.avatar} 
+                        alt={review.name} 
+                        className="w-10 h-10 rounded-full mr-3"
+                      />
+                      <div>
+                        <h4 className="font-medium">{review.name}</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex">
+                            {[...Array(5)].map((_, i) => (
+                              <Star 
+                                key={i} 
+                                className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
+                              />
+                            ))}
                           </div>
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(review.date).toLocaleDateString()}
+                          </span>
                         </div>
                       </div>
-                      <p className="mt-3 text-sm">{review.review}</p>
                     </div>
-                  ))}
-                </div>
+                    <p className="mt-3 text-sm">{review.review}</p>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>
@@ -464,16 +568,5 @@ const ProductDetail = () => {
     </div>
   );
 };
-
-const Label = React.forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLLabelElement>>(
-  ({ className, ...props }, ref) => (
-    <label 
-      ref={ref} 
-      className={`block text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className}`} 
-      {...props} 
-    />
-  )
-);
-Label.displayName = "Label";
 
 export default ProductDetail;
