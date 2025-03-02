@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -6,8 +7,14 @@ import Footer from '@/components/Footer';
 import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   ArrowLeft, 
@@ -49,7 +56,7 @@ const ProductDetail = () => {
     return (
       <div>
         <Navbar />
-        <div className="container mx-auto px-4 py-12">
+        <div className="content-container py-12">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
             <p className="mb-6">The product you are looking for does not exist.</p>
@@ -68,7 +75,8 @@ const ProductDetail = () => {
       type: 'ADD_TO_CART',
       payload: {
         id: product.id,
-        quantity: quantity
+        quantity: quantity,
+        variantId: selectedVariant || undefined
       }
     });
     
@@ -98,7 +106,7 @@ const ProductDetail = () => {
       <Navbar />
       
       <main className="flex-1 bg-gradient-to-b from-purple-50 to-white dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4 py-12">
+        <div className="content-container py-12">
           <Link to="/products" className="inline-flex items-center mb-8 text-primary hover:underline">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Products
@@ -175,35 +183,33 @@ const ProductDetail = () => {
                   <p className="text-lg">{product.description}</p>
                 </div>
                 
-                {/* Language Variants */}
+                {/* Language Variants with shadcn Select */}
                 <div className="mb-8">
                   <h3 className="text-lg font-medium mb-3 flex items-center">
                     <Languages className="mr-2 h-5 w-5 text-primary" />
                     Available Languages
                   </h3>
-                  <RadioGroup value={selectedVariant} onValueChange={setSelectedVariant} className="flex flex-wrap gap-3">
-                    {languageVariants.map((variant) => (
-                      <div key={variant.id} className="flex items-center">
-                        <RadioGroupItem 
-                          value={variant.id} 
-                          id={`lang-${variant.id}`}
-                          disabled={!variant.available}
-                          className="peer sr-only"
-                        />
-                        <Label
-                          htmlFor={`lang-${variant.id}`}
-                          className={`px-4 py-2 rounded-full cursor-pointer border ${
-                            variant.available 
-                              ? 'hover:bg-primary/10 peer-checked:bg-primary peer-checked:text-white' 
-                              : 'opacity-50 cursor-not-allowed'
-                          }`}
-                        >
-                          {variant.name}
-                          {!variant.available && <span className="ml-1">(Coming Soon)</span>}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
+                  
+                  <Select value={selectedVariant} onValueChange={setSelectedVariant}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {languageVariants.map((variant) => (
+                          variant.available ? (
+                            <SelectItem key={variant.id} value={variant.id}>
+                              {variant.name}
+                            </SelectItem>
+                          ) : (
+                            <SelectItem key={variant.id} value={variant.id} disabled>
+                              {variant.name} (Coming Soon)
+                            </SelectItem>
+                          )
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <Separator className="my-6" />

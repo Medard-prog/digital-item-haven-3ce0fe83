@@ -26,6 +26,7 @@ type State = {
   cart: {
     items: CartItem[];
   };
+  favorites: string[]; // New favorites array to store product IDs
 };
 
 type Action =
@@ -35,7 +36,9 @@ type Action =
   | { type: 'ADD_TO_CART'; payload: { id: string; quantity: number; variantId?: string } }
   | { type: 'REMOVE_FROM_CART'; payload: { id: string } }
   | { type: 'UPDATE_CART_QUANTITY'; payload: { id: string; quantity: number } }
-  | { type: 'CLEAR_CART' };
+  | { type: 'CLEAR_CART' }
+  | { type: 'ADD_TO_FAVORITES'; payload: string }
+  | { type: 'REMOVE_FROM_FAVORITES'; payload: string };
 
 // Helper function to format currency
 export const formatCurrency = (amount: number): string => {
@@ -153,7 +156,8 @@ const initialState: State = {
   products: initialProducts,
   cart: {
     items: []
-  }
+  },
+  favorites: []
 };
 
 // Reducer function
@@ -189,7 +193,8 @@ const reducer = (state: State, action: Action): State => {
         const updatedItems = [...state.cart.items];
         updatedItems[existingItemIndex] = {
           ...updatedItems[existingItemIndex],
-          quantity: updatedItems[existingItemIndex].quantity + action.payload.quantity
+          quantity: updatedItems[existingItemIndex].quantity + action.payload.quantity,
+          variantId: action.payload.variantId || updatedItems[existingItemIndex].variantId
         };
         
         return {
@@ -205,7 +210,11 @@ const reducer = (state: State, action: Action): State => {
           ...state,
           cart: {
             ...state.cart,
-            items: [...state.cart.items, action.payload]
+            items: [...state.cart.items, {
+              id: action.payload.id,
+              quantity: action.payload.quantity,
+              variantId: action.payload.variantId
+            }]
           }
         };
       }
@@ -240,6 +249,22 @@ const reducer = (state: State, action: Action): State => {
           ...state.cart,
           items: []
         }
+      };
+    
+    // New favorite actions
+    case 'ADD_TO_FAVORITES':
+      if (state.favorites.includes(action.payload)) {
+        return state; // Already in favorites
+      }
+      return {
+        ...state,
+        favorites: [...state.favorites, action.payload]
+      };
+      
+    case 'REMOVE_FROM_FAVORITES':
+      return {
+        ...state,
+        favorites: state.favorites.filter(id => id !== action.payload)
       };
     
     default:
