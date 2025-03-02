@@ -41,15 +41,12 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     if (quantity < 1) {
       dispatch({
         type: 'REMOVE_FROM_CART',
-        payload: id
+        payload: { id }
       });
     } else {
       dispatch({
-        type: 'UPDATE_CART_ITEM',
-        payload: {
-          id,
-          quantity
-        }
+        type: 'UPDATE_CART_QUANTITY',
+        payload: { id, quantity }
       });
     }
   };
@@ -58,7 +55,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const removeItem = (id: string) => {
     dispatch({
       type: 'REMOVE_FROM_CART',
-      payload: id
+      payload: { id }
     });
   };
   
@@ -101,8 +98,8 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   <CartItem 
                     key={item.id} 
                     item={item} 
-                    updateQuantity={updateQuantity}
-                    removeItem={removeItem}
+                    onUpdateQuantity={(quantity) => updateQuantity(item.id, quantity)}
+                    onRemove={() => removeItem(item.id)}
                   />
                 ))}
               </ul>

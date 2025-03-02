@@ -11,7 +11,7 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 270 76% 54%; /* Purple theme */
+    --primary: 270 76% 54%; /* Light purple theme */
     --primary-foreground: 0 0% 98%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
@@ -24,7 +24,7 @@
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 270 76% 54%;
-    --radius: 0.5rem;
+    --radius: 1rem;
   }
 
   .dark {
@@ -55,7 +55,10 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-medium;
   }
 }
 
@@ -69,36 +72,66 @@
 }
 
 .glass-card {
-  @apply glass rounded-xl;
+  @apply glass rounded-2xl;
 }
 
 .bento-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4;
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
 }
 
 .bento-item {
-  @apply glass-card p-6 flex flex-col;
+  @apply glass-card p-6 flex flex-col transition-all hover:shadow-lg;
 }
 
 .animated-element {
   @apply transition-all duration-300 ease-in-out;
 }
 
-.fade-in {
-  @apply animate-fade-in;
+/* Animation for elements as they enter viewport */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
 }
 
-.slide-in {
-  @apply animate-slide-in;
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-/* Shopify-style cart */
-.cart-overlay {
-  @apply fixed inset-0 bg-black/20 backdrop-blur-sm z-40;
+.reveal-delay-1 {
+  transition-delay: 0.1s;
 }
 
-.cart-sidebar {
-  @apply fixed top-0 right-0 h-full w-full sm:w-96 bg-white dark:bg-gray-900 z-50 shadow-xl transform transition-transform duration-300;
+.reveal-delay-2 {
+  transition-delay: 0.2s;
+}
+
+.reveal-delay-3 {
+  transition-delay: 0.3s;
+}
+
+.reveal-delay-4 {
+  transition-delay: 0.4s;
+}
+
+/* Special effects for digital product badges */
+.digital-product {
+  position: relative;
+  overflow: hidden;
+}
+
+.digital-product::after {
+  content: "Digital";
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background-color: hsl(var(--primary));
+  color: white;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 0.25rem;
+  z-index: 10;
 }
 
 /* Custom scrollbar */
@@ -116,4 +149,13 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-purple-500/60;
+}
+
+/* Shopify-style cart */
+.cart-overlay {
+  @apply fixed inset-0 bg-black/20 backdrop-blur-sm z-40;
+}
+
+.cart-sidebar {
+  @apply fixed top-0 right-0 h-full w-full sm:w-96 bg-white dark:bg-gray-900 z-50 shadow-xl transform transition-transform duration-300;
 }
