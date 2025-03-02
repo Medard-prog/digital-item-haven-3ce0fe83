@@ -1,39 +1,29 @@
 
 import React from 'react';
-import { useStore, formatCurrency, CartItem as CartItemType } from '@/lib/store';
+import { useStore, formatCurrency } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Trash2, Minus, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface CartItemProps {
-  item: CartItemType;
+  item: {
+    id: string;
+    quantity: number;
+    product?: {
+      id: string;
+      title: string;
+      price: number;
+      image?: string;
+    };
+  };
+  onRemove: () => void;
+  onUpdateQuantity: (quantity: number) => void;
 }
 
-const CartItem = ({ item }: CartItemProps) => {
-  const { dispatch } = useStore();
-  
-  const handleQuantityChange = (newQuantity: number) => {
-    if (newQuantity < 1) return;
-    
-    dispatch({
-      type: 'UPDATE_CART_ITEM',
-      payload: {
-        productId: item.productId,
-        variantId: item.variantId,
-        quantity: newQuantity
-      }
-    });
-  };
-  
-  const handleRemove = () => {
-    dispatch({
-      type: 'REMOVE_FROM_CART',
-      payload: {
-        productId: item.productId,
-        variantId: item.variantId
-      }
-    });
-  };
+const CartItem = ({ item, onRemove, onUpdateQuantity }: CartItemProps) => {
+  if (!item.product) {
+    return null;
+  }
   
   return (
     <motion.div 
@@ -45,7 +35,7 @@ const CartItem = ({ item }: CartItemProps) => {
     >
       <div className="rounded-md overflow-hidden w-full sm:w-24 h-24 bg-muted flex-shrink-0">
         <img 
-          src={item.product.image} 
+          src={item.product.image || '/placeholder.svg'} 
           alt={item.product.title}
           className="w-full h-full object-cover"
         />
@@ -53,11 +43,9 @@ const CartItem = ({ item }: CartItemProps) => {
       
       <div className="flex-1">
         <h3 className="font-medium mb-1">{item.product.title}</h3>
-        <p className="text-sm text-muted-foreground mb-1">
-          Variant: {item.variant.name}
-        </p>
+        
         <p className="font-medium">
-          {formatCurrency(item.variant.price)}
+          {formatCurrency(item.product.price)}
         </p>
         
         <div className="flex flex-wrap items-center gap-4 mt-3">
@@ -66,7 +54,8 @@ const CartItem = ({ item }: CartItemProps) => {
               variant="outline" 
               size="icon" 
               className="h-8 w-8 rounded-r-none"
-              onClick={() => handleQuantityChange(item.quantity - 1)}
+              onClick={() => onUpdateQuantity(item.quantity - 1)}
+              disabled={item.quantity <= 1}
             >
               <Minus className="h-3 w-3" />
             </Button>
@@ -77,7 +66,7 @@ const CartItem = ({ item }: CartItemProps) => {
               variant="outline" 
               size="icon" 
               className="h-8 w-8 rounded-l-none"
-              onClick={() => handleQuantityChange(item.quantity + 1)}
+              onClick={() => onUpdateQuantity(item.quantity + 1)}
             >
               <Plus className="h-3 w-3" />
             </Button>
@@ -87,7 +76,7 @@ const CartItem = ({ item }: CartItemProps) => {
             variant="ghost" 
             size="sm" 
             className="h-8 px-2 text-destructive"
-            onClick={handleRemove}
+            onClick={onRemove}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Remove
@@ -96,7 +85,7 @@ const CartItem = ({ item }: CartItemProps) => {
       </div>
       
       <div className="text-right font-semibold">
-        {formatCurrency(item.variant.price * item.quantity)}
+        {formatCurrency(item.product.price * item.quantity)}
       </div>
     </motion.div>
   );

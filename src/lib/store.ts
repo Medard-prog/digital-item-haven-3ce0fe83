@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useReducer } from 'react';
 
 // Types
@@ -262,10 +261,10 @@ const StoreContext = createContext<StoreContextType>({
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
   
-  return (
-    <StoreContext.Provider value={{ state, dispatch }}>
-      {children}
-    </StoreContext.Provider>
+  return React.createElement(
+    StoreContext.Provider,
+    { value: { state, dispatch } },
+    children
   );
 };
 

@@ -17,14 +17,15 @@ const ProductCard = ({ product, featured = false }: ProductCardProps) => {
   const { dispatch } = useStore();
   
   const handleAddToCart = () => {
-    dispatch({
-      type: 'ADD_TO_CART',
-      payload: {
-        product,
-        variantId: product.variants[0].id,
-        quantity: 1
-      }
-    });
+    if (product.variants && product.variants.length > 0) {
+      dispatch({
+        type: 'ADD_TO_CART',
+        payload: {
+          id: product.id,
+          quantity: 1
+        }
+      });
+    }
   };
   
   return (
@@ -44,7 +45,7 @@ const ProductCard = ({ product, featured = false }: ProductCardProps) => {
         )}
       >
         <img 
-          src={product.image} 
+          src={product.image || '/placeholder.svg'} 
           alt={product.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
@@ -64,7 +65,7 @@ const ProductCard = ({ product, featured = false }: ProductCardProps) => {
       )}>
         <div className="flex-1">
           <div className="flex gap-2 mb-1">
-            {product.categories.map((category) => (
+            {product.categories && product.categories.map((category) => (
               <Badge key={category} variant="outline" className="text-xs">
                 {category}
               </Badge>
