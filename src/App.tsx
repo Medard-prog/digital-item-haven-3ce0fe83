@@ -14,6 +14,8 @@ import NotFound from '@/pages/NotFound';
 import UserDashboard from '@/pages/user/Dashboard';
 import UserProfile from '@/pages/user/Profile';
 import UserPurchases from '@/pages/user/Purchases';
+import Security from '@/pages/user/Security'; // New page
+import Preferences from '@/pages/user/Preferences'; // New page
 
 // Admin Pages
 import Dashboard from '@/pages/admin/Dashboard';
@@ -65,6 +67,16 @@ function App() {
             <Route path="/purchases" element={
               <PrivateRoute>
                 <UserPurchases />
+              </PrivateRoute>
+            } />
+            <Route path="/security" element={
+              <PrivateRoute>
+                <Security />
+              </PrivateRoute>
+            } />
+            <Route path="/preferences" element={
+              <PrivateRoute>
+                <Preferences />
               </PrivateRoute>
             } />
             

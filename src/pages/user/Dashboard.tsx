@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, User, ShoppingBag, Shield, Settings } from 'lucide-react';
 import UserSidebar from '@/components/UserSidebar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -102,6 +103,90 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
         
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" />
+                My Profile
+              </CardTitle>
+              <CardDescription>Manage personal information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Update your personal details and preferences
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate('/profile')}>
+                View Profile
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-primary" />
+                My Purchases
+              </CardTitle>
+              <CardDescription>View your order history</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {recentOrders.length > 0 
+                  ? `You have ${recentOrders.length} recent order${recentOrders.length > 1 ? 's' : ''}`
+                  : 'No recent purchases'}
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate('/purchases')}>
+                View Purchases
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                Security
+              </CardTitle>
+              <CardDescription>Manage your account security</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Update password and security settings
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate('/security')}>
+                View Security
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
+                <Settings className="h-5 w-5 text-primary" />
+                Preferences
+              </CardTitle>
+              <CardDescription>Customize your experience</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Set notification and display preferences
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => navigate('/preferences')}>
+                View Preferences
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+        
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -132,7 +217,7 @@ const Dashboard = () => {
             <CardContent>
               {recentOrders.length > 0 ? (
                 <div className="space-y-4">
-                  {recentOrders.map(order => (
+                  {recentOrders.map((order: any) => (
                     <div key={order.id} className="border-b pb-3">
                       <p className="text-sm text-muted-foreground">
                         Order #{order.id.substring(0, 8)} - {new Date(order.created_at).toLocaleDateString()}

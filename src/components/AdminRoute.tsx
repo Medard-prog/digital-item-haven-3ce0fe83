@@ -45,7 +45,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   // Development mode always gets admin access
   const isDevelopment = process.env.NODE_ENV === 'development';
   
-  if (localLoading && isLoading && !isDevelopment) {
+  if (localLoading && isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />

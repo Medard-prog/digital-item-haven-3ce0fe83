@@ -11,7 +11,9 @@ import {
   LogOut,
   Menu,
   X,
-  LayoutDashboard
+  LayoutDashboard,
+  Shield,
+  Sliders
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
@@ -46,7 +48,8 @@ const UserSidebar = ({ children }: UserSidebarProps) => {
     { path: '/profile', label: 'Profile', icon: <User className="h-5 w-5" /> },
     { path: '/purchases', label: 'Purchases', icon: <ShoppingBag className="h-5 w-5" /> },
     { path: '/favorites', label: 'Favorites', icon: <Heart className="h-5 w-5" /> },
-    { path: '/settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> },
+    { path: '/security', label: 'Security', icon: <Shield className="h-5 w-5" /> },
+    { path: '/preferences', label: 'Preferences', icon: <Sliders className="h-5 w-5" /> },
   ];
   
   const isActive = (path: string) => {

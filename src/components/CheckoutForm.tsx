@@ -1,277 +1,196 @@
-
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useStore } from '@/lib/store';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-
-interface CartItemWithDetails {
-  id: string;
-  quantity: number;
-  variantId?: string;
-  product?: {
-    id: string;
-    title: string;
-    price: number;
-    image?: string;
-    variants?: Array<{id: string, name: string, price?: number}>;
-  };
-}
+import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { createOrder } from '@/lib/order-utils';
+import { useStore } from '@/lib/store';
+import { Link } from 'react-router-dom';
+import { ShoppingCart } from 'lucide-react';
 
 interface CheckoutFormProps {
-  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  cartItemsWithDetails: CartItemWithDetails[];
+  subtotal: number;
+  taxes: number;
+  total: number;
+  cartItemsWithDetails: any[];
+  onCheckoutComplete: () => void;
 }
 
-const CheckoutForm = ({ setIsLoading, cartItemsWithDetails }: CheckoutFormProps) => {
-  const navigate = useNavigate();
-  const { state, dispatch } = useStore();
+// Add this function at the component level for formatting currency
+const formatCurrency = (amount: number): string => {
+  return `$${amount.toFixed(2)}`;
+};
+
+// Update the component with cleaner, less "cringe" styling
+const CheckoutForm = ({ subtotal, taxes, total, cartItemsWithDetails, onCheckoutComplete }: CheckoutFormProps) => {
+  const { dispatch } = useStore();
   const { toast } = useToast();
-  const { user } = useAuth();
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    email: user?.email || '',
-    address: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    cardName: '',
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-  });
-  
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-  
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expMonth, setExpMonth] = useState('');
+  const [expYear, setExpYear] = useState('');
+  const [cvc, setCvc] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    try {
-      // Calculate total
-      const subtotal = cartItemsWithDetails.reduce(
-        (sum, item) => sum + ((item.product?.price || 0) * item.quantity), 
-        0
-      );
-      const tax = subtotal * 0.1; // 10% tax
-      const total = subtotal + tax;
-      
-      // Create order in database if user is authenticated
-      if (user) {
-        // Insert order first
-        const { data: orderData, error: orderError } = await supabase
-          .from('orders')
-          .insert([
-            { 
-              user_id: user.id,
-              total: total,
-              status: 'processing'
-            }
-          ])
-          .select();
-        
-        if (orderError) throw orderError;
-        
-        if (orderData && orderData[0]) {
-          const orderId = orderData[0].id;
-          
-          // Insert order items
-          const orderItems = cartItemsWithDetails.map(item => ({
-            order_id: orderId,
-            product_id: item.id,
-            variant_id: item.variantId || null,
-            quantity: item.quantity,
-            price: item.product?.price || 0
-          }));
-          
-          const { error: itemsError } = await supabase
-            .from('order_items')
-            .insert(orderItems);
-          
-          if (itemsError) throw itemsError;
-        }
-      }
-      
-      // Show success message
-      toast({
-        title: "Order Placed Successfully!",
-        description: "Thank you for your purchase.",
-      });
-      
-      // Clear cart
-      dispatch({ type: 'CLEAR_CART' });
-      
-      // Redirect to success page or dashboard
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
-      
-    } catch (error: any) {
-      console.error('Checkout error:', error);
+
+    if (!name || !email || !cardNumber || !expMonth || !expYear || !cvc) {
       toast({
         variant: "destructive",
-        title: "Checkout Failed",
-        description: error.message || "There was an error processing your order.",
+        title: "Missing fields",
+        description: "Please fill in all the required fields."
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Create order in Supabase
+      const order = await createOrder({
+        name,
+        email,
+        cardNumber,
+        expMonth,
+        expYear,
+        cvc,
+        subtotal,
+        taxes,
+        total,
+        cartItemsWithDetails
+      });
+
+      if (order && order.id) {
+        toast({
+          title: "Order successful",
+          description: `Your order has been placed successfully. Order ID: ${order.id}`
+        });
+
+        // Clear cart
+        dispatch({ type: 'CLEAR_CART' });
+
+        // Call the callback function to indicate checkout is complete
+        onCheckoutComplete();
+      } else {
+        throw new Error("Failed to create order");
+      }
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      toast({
+        variant: "destructive",
+        title: "Payment failed",
+        description: error.message || "An error occurred while processing your payment."
       });
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
     }
   };
-  
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-4">
-        <h3 className="text-lg font-medium">Shipping Information</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <Label htmlFor="name" className="mb-1.5 block text-sm font-medium">Full Name</Label>
             <Input
               id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
+              placeholder="John Doe"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               required
               className="rounded-md"
             />
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
+          <div className="col-span-2">
+            <Label htmlFor="email" className="mb-1.5 block text-sm font-medium">Email Address</Label>
             <Input
               id="email"
-              name="email"
               type="email"
-              value={formData.email}
-              onChange={handleChange}
+              placeholder="john@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               className="rounded-md"
             />
           </div>
         </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="address">Street Address</Label>
-          <Input
-            id="address"
-            name="address"
-            value={formData.address}
-            onChange={handleChange}
-            required
-            className="rounded-md"
-          />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="city">City</Label>
-            <Input
-              id="city"
-              name="city"
-              value={formData.city}
-              onChange={handleChange}
-              required
-              className="rounded-md"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="state">State/Province</Label>
-            <Input
-              id="state"
-              name="state"
-              value={formData.state}
-              onChange={handleChange}
-              required
-              className="rounded-md"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="postalCode">ZIP/Postal Code</Label>
-            <Input
-              id="postalCode"
-              name="postalCode"
-              value={formData.postalCode}
-              onChange={handleChange}
-              required
-              className="rounded-md"
-            />
-          </div>
-        </div>
-      </div>
-      
-      <Separator />
-      
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Payment Details</h3>
-        
-        <div className="space-y-2">
-          <Label htmlFor="cardName">Name on Card</Label>
-          <Input
-            id="cardName"
-            name="cardName"
-            value={formData.cardName}
-            onChange={handleChange}
-            required
-            className="rounded-md"
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="cardNumber">Card Number</Label>
+
+        <div>
+          <Label htmlFor="cardNumber" className="mb-1.5 block text-sm font-medium">Card Number</Label>
           <Input
             id="cardNumber"
-            name="cardNumber"
-            value={formData.cardNumber}
-            onChange={handleChange}
+            placeholder="4242 4242 4242 4242"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(e.target.value)}
             required
-            placeholder="•••• •••• •••• ••••"
+            maxLength={19}
             className="rounded-md"
           />
         </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="expiryDate">Expiry Date</Label>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div className="col-span-1">
+            <Label htmlFor="expMonth" className="mb-1.5 block text-sm font-medium">Month</Label>
             <Input
-              id="expiryDate"
-              name="expiryDate"
-              value={formData.expiryDate}
-              onChange={handleChange}
+              id="expMonth"
+              placeholder="MM"
+              value={expMonth}
+              onChange={(e) => setExpMonth(e.target.value)}
               required
-              placeholder="MM/YY"
+              maxLength={2}
               className="rounded-md"
             />
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="cvv">CVV</Label>
+          <div className="col-span-1">
+            <Label htmlFor="expYear" className="mb-1.5 block text-sm font-medium">Year</Label>
             <Input
-              id="cvv"
-              name="cvv"
-              value={formData.cvv}
-              onChange={handleChange}
+              id="expYear"
+              placeholder="YY"
+              value={expYear}
+              onChange={(e) => setExpYear(e.target.value)}
               required
-              placeholder="•••"
+              maxLength={2}
+              className="rounded-md"
+            />
+          </div>
+          <div className="col-span-1">
+            <Label htmlFor="cvc" className="mb-1.5 block text-sm font-medium">CVC</Label>
+            <Input
+              id="cvc"
+              placeholder="123"
+              value={cvc}
+              onChange={(e) => setCvc(e.target.value)}
+              required
+              maxLength={4}
               className="rounded-md"
             />
           </div>
         </div>
       </div>
-      
-      <Button type="submit" size="lg" className="w-full">
-        Place Order
-      </Button>
+
+      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex justify-between text-base font-medium mb-1">
+          <p>Order total</p>
+          <p>{formatCurrency(total)}</p>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          By completing your purchase you agree to our Terms of Service.
+        </p>
+        <Button type="submit" disabled={isProcessing} className="w-full rounded-md">
+          {isProcessing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            `Pay ${formatCurrency(total)}`
+          )}
+        </Button>
+      </div>
     </form>
   );
 };

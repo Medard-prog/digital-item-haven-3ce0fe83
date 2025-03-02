@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -36,9 +35,9 @@ const Navbar = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Refresh auth session when Navbar mounts - this ensures admin status is current on every page
   useEffect(() => {
     refreshSession();
+    console.log("Navbar - user:", user ? "exists" : "null", "isAdmin:", isAdmin);
   }, [refreshSession]);
   
   const cartItemsCount = state.cart.items.reduce(
@@ -52,7 +51,6 @@ const Navbar = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      // Navigation is handled in the signOut function
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -66,7 +64,13 @@ const Navbar = () => {
     ? user.email.substring(0, 2).toUpperCase() 
     : 'U';
   
-  console.log("Navbar - user:", user ? "exists" : "null", "isAdmin:", isAdmin);
+  const userMenuItems = [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/profile", label: "Profile" },
+    { href: "/purchases", label: "Purchases" },
+    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
+    { href: "#", label: "Sign out", onClick: handleSignOut },
+  ];
   
   return (
     <>
@@ -81,7 +85,6 @@ const Navbar = () => {
                 </span>
               </Link>
               
-              {/* Desktop Nav Links */}
               <nav className="hidden md:flex ml-10 space-x-6">
                 <Link 
                   to="/" 
@@ -157,7 +160,6 @@ const Navbar = () => {
             </div>
             
             <div className="flex items-center space-x-3">
-              {/* Cart Button */}
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -172,7 +174,6 @@ const Navbar = () => {
                 )}
               </Button>
               
-              {/* Auth Button */}
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -191,40 +192,14 @@ const Navbar = () => {
                       </div>
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard" className="flex w-full">
-                        <User className="mr-2 h-4 w-4" />
-                        <span>Dashboard</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    {isAdmin && (
-                      <>
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin" className="flex w-full">
-                            <GanttChartSquare className="mr-2 h-4 w-4" />
-                            <span>Admin Panel</span>
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    <DropdownMenuItem asChild>
-                      <Link to="/profile" className="flex w-full">
-                        <User className="mr-2 h-4 w-4" />
-                        <span>Profile</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/favorites" className="flex w-full">
-                        <Heart className="mr-2 h-4 w-4" />
-                        <span>Favorites</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>Log out</span>
-                    </DropdownMenuItem>
+                    {userMenuItems.map((item, index) => (
+                      <DropdownMenuItem key={index} asChild>
+                        <Link to={item.href} className="flex w-full">
+                          <item.icon className="mr-2 h-4 w-4" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
@@ -235,7 +210,6 @@ const Navbar = () => {
                 </div>
               )}
               
-              {/* Mobile Menu Button */}
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -249,7 +223,6 @@ const Navbar = () => {
         </div>
       </header>
       
-      {/* Mobile Menu */}
       {isMenuOpen && (
         <div className="md:hidden fixed inset-0 z-30 bg-white dark:bg-gray-900 pt-16 animate-fade-in">
           <nav className="container mx-auto px-4 py-6 flex flex-col space-y-4">
@@ -326,7 +299,6 @@ const Navbar = () => {
               </div>
             </div>
             
-            {/* Mobile Auth */}
             {!user ? (
               <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-800 flex flex-col space-y-2">
                 <Button asChild>
@@ -365,7 +337,6 @@ const Navbar = () => {
               </div>
             )}
             
-            {/* Admin Links (Mobile) */}
             {user && isAdmin && (
               <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Admin</p>
@@ -398,7 +369,6 @@ const Navbar = () => {
               </div>
             )}
             
-            {/* Logout (Mobile) */}
             {user && (
               <div className="pt-4 mt-auto border-t border-gray-200 dark:border-gray-800">
                 <Button variant="outline" className="w-full" onClick={handleSignOut}>
@@ -411,7 +381,6 @@ const Navbar = () => {
         </div>
       )}
       
-      {/* Cart Drawer */}
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );

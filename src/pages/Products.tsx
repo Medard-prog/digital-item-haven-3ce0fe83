@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useStore, Product } from '@/lib/store';
@@ -45,17 +44,11 @@ const Products = () => {
     setError(null);
     try {
       console.log("Fetching products from database...");
+      
+      // Simplified query to ensure we get products
       const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select(`
-          *,
-          product_features(*),
-          product_variants(*),
-          product_category_map(
-            category_id,
-            product_categories(name)
-          )
-        `);
+        .select('*');
 
       if (productsError) {
         console.error('Error fetching products:', productsError);
@@ -66,10 +59,74 @@ const Products = () => {
 
       if (!productsData || productsData.length === 0) {
         console.log("No products found in database");
-        setProducts([]);
-        setFilteredProducts([]);
+        
+        // Use sample products from the store as fallback
+        const storeProducts = state.products || [];
+        setProducts(storeProducts);
+        setFilteredProducts(storeProducts);
+        
+        // Extract categories from store products
+        const allCategories = Array.from(new Set(
+          storeProducts.flatMap(product => product.categories || [])
+        )).sort();
+        
+        setCategories(allCategories);
         setIsLoading(false);
         return;
+      }
+
+      // Fetch additional data in separate queries
+      const { data: featuresData } = await supabase
+        .from('product_features')
+        .select('*');
+        
+      const { data: variantsData } = await supabase
+        .from('product_variants')
+        .select('*');
+        
+      const { data: categoriesMapData } = await supabase
+        .from('product_category_map')
+        .select('*, product_categories(*)');
+
+      // Map features and variants to their respective products
+      const featuresMap = new Map();
+      const variantsMap = new Map();
+      const categoriesMap = new Map();
+      
+      // Process features
+      if (featuresData) {
+        featuresData.forEach((feature: any) => {
+          if (!featuresMap.has(feature.product_id)) {
+            featuresMap.set(feature.product_id, []);
+          }
+          featuresMap.get(feature.product_id).push(feature.feature);
+        });
+      }
+      
+      // Process variants
+      if (variantsData) {
+        variantsData.forEach((variant: any) => {
+          if (!variantsMap.has(variant.product_id)) {
+            variantsMap.set(variant.product_id, []);
+          }
+          variantsMap.get(variant.product_id).push({
+            id: variant.id,
+            name: variant.name,
+            price: variant.price
+          });
+        });
+      }
+      
+      // Process categories
+      if (categoriesMapData) {
+        categoriesMapData.forEach((categoryMap: any) => {
+          if (!categoriesMap.has(categoryMap.product_id)) {
+            categoriesMap.set(categoryMap.product_id, []);
+          }
+          if (categoryMap.product_categories && categoryMap.product_categories.name) {
+            categoriesMap.get(categoryMap.product_id).push(categoryMap.product_categories.name);
+          }
+        });
       }
 
       // Transform Supabase data to match our Product type
@@ -80,13 +137,14 @@ const Products = () => {
         price: product.price,
         image: product.image_url,
         featured: product.featured,
-        features: product.product_features?.map((f: any) => f.feature) || [],
-        categories: product.product_category_map?.map((c: any) => c.product_categories.name) || [],
-        variants: product.product_variants || []
+        features: featuresMap.get(product.id) || [],
+        categories: categoriesMap.get(product.id) || [],
+        variants: variantsMap.get(product.id) || []
       }));
 
       console.log("Formatted products:", formattedProducts);
 
+      // Get all unique categories
       const allCategories = Array.from(new Set(
         formattedProducts.flatMap(product => product.categories || [])
       )).sort();
@@ -111,6 +169,10 @@ const Products = () => {
         title: "Error loading products",
         description: err.message
       });
+      
+      // Fallback to store products
+      setProducts(state.products);
+      setFilteredProducts(state.products);
     } finally {
       setIsLoading(false);
     }
