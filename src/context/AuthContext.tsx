@@ -11,6 +11,9 @@ interface AuthContextProps {
   isAdmin: boolean;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -144,8 +147,84 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Add login function
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Set user and check admin status
+      if (data.user) {
+        setUser(data.user);
+        
+        // Fetch user profile to determine admin status
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+          setIsAdmin(false);
+        } else {
+          console.log("Profile data:", profileData);
+          setIsAdmin(profileData?.is_admin || false);
+        }
+      }
+    } catch (error: any) {
+      console.error('Login error:', error.message);
+      throw error;
+    }
+  };
+
+  // Add register function
+  const register = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // In some cases Supabase might automatically sign in the user after registration
+      if (data.user) {
+        setUser(data.user);
+        setIsAdmin(false); // New users are not admins by default
+      }
+    } catch (error: any) {
+      console.error('Registration error:', error.message);
+      throw error;
+    }
+  };
+
+  // Add reset password function
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      console.error('Reset password error:', error.message);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAdmin, signOut, refreshSession }}>
+    <AuthContext.Provider value={{ user, isLoading, isAdmin, signOut, refreshSession, login, register, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

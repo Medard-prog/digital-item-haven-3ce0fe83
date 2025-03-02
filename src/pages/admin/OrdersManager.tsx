@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -25,16 +24,31 @@ const OrdersManager = () => {
         console.log("Fetching orders...");
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
-          .select(`
-            *,
-            profiles (email, first_name, last_name)
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
         
         if (ordersError) throw ordersError;
         console.log("Orders data:", ordersData);
         
         const ordersWithItems = await Promise.all((ordersData || []).map(async (order) => {
+          let profileData = null;
+          let profileError = null;
+          
+          if (order.user_id) {
+            const profileResponse = await supabase
+              .from('profiles')
+              .select('email, first_name, last_name')
+              .eq('id', order.user_id)
+              .single();
+            
+            profileData = profileResponse.data;
+            profileError = profileResponse.error;
+            
+            if (profileError) {
+              console.error('Error fetching profile for user ID:', order.user_id, profileError);
+            }
+          }
+          
           try {
             const { data: items, error: itemsError } = await supabase
               .from('order_items')
@@ -47,12 +61,14 @@ const OrdersManager = () => {
             
             if (itemsError) throw itemsError;
             
+            const firstName = profileData?.first_name || '';
+            const lastName = profileData?.last_name || '';
+            const customerName = `${firstName} ${lastName}`.trim() || 'Unknown';
+            
             return {
               id: order.id,
-              customer: order.profiles ? 
-                `${order.profiles.first_name || ''} ${order.profiles.last_name || ''}`.trim() || 'Unknown' : 
-                'Unknown',
-              email: order.profiles?.email || 'No email',
+              customer: customerName,
+              email: profileData?.email || 'No email',
               date: order.created_at,
               total: typeof order.total === 'number' ? order.total : parseFloat(order.total) || 0,
               status: order.status || 'pending',
@@ -84,7 +100,6 @@ const OrdersManager = () => {
           variant: "destructive"
         });
         
-        // For development, create some dummy orders
         if (process.env.NODE_ENV === 'development') {
           console.log("Development mode: setting mock orders");
           const mockOrders = [
