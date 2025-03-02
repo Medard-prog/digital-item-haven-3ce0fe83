@@ -1,5 +1,5 @@
 
-import { supabaseClient } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OrderDetails {
   name: string;
@@ -21,7 +21,7 @@ export const createOrder = async (orderDetails: OrderDetails) => {
     const maskedCardNumber = `xxxx-xxxx-xxxx-${lastFourDigits}`;
 
     // Create the order in the database
-    const { data: order, error } = await supabaseClient
+    const { data: order, error } = await supabase
       .from('orders')
       .insert({
         user_email: orderDetails.email,
@@ -48,7 +48,7 @@ export const createOrder = async (orderDetails: OrderDetails) => {
         price: item.price
       }));
 
-      const { error: itemsError } = await supabaseClient
+      const { error: itemsError } = await supabase
         .from('order_items')
         .insert(orderItems);
 
