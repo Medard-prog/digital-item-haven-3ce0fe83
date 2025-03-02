@@ -1,456 +1,462 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { useStore, formatCurrency } from '@/lib/store';
+import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Star,
+  Check,
+  Download,
+  BookOpen,
+  ArrowLeft,
+  ShoppingCart,
+  AlertTriangle,
+  Shield,
+  Zap,
+  Globe,
+  Users
+} from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  ArrowLeft, 
-  ShoppingCart, 
-  Download, 
-  Check,
-  Star, 
-  Shield, 
-  Zap,
-  Award, 
-  Clock, 
-  Languages
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+} from '@/components/ui/select';
 
 const ProductDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const { state, dispatch } = useStore();
   const { toast } = useToast();
-  
-  const [selectedVariant, setSelectedVariant] = useState("");
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
-  const [languageVariants, setLanguageVariants] = useState([
-    { id: "en", name: "English", available: true },
-    { id: "es", name: "Spanish", available: true },
-    { id: "fr", name: "French", available: false },
-    { id: "de", name: "German", available: true }
-  ]);
-  
-  const product = state.products.find(p => p.id === id);
+  const [selectedLanguage, setSelectedLanguage] = useState('english');
+  const reviewsRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
-    if (product && product.variants && product.variants.length > 0) {
-      setSelectedVariant(product.variants[0].id);
-    }
-  }, [product]);
+    // Simulate API call to fetch product
+    setTimeout(() => {
+      const foundProduct = state.products.find(p => p.id === id);
+      setProduct(foundProduct || null);
+      setLoading(false);
+    }, 500);
+  }, [id, state.products]);
   
-  if (!product) {
+  const handleAddToCart = () => {
+    if (product) {
+      dispatch({
+        type: 'ADD_TO_CART',
+        payload: { 
+          id: product.id, 
+          quantity,
+          variantId: selectedLanguage
+        }
+      });
+      
+      toast({
+        title: "Added to cart",
+        description: `${product.title} has been added to your cart.`
+      });
+    }
+  };
+  
+  const scrollToReviews = () => {
+    reviewsRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  // Available languages with flags
+  const languages = [
+    { value: 'english', label: 'English', flag: '🇬🇧' },
+    { value: 'spanish', label: 'Spanish', flag: '🇪🇸' },
+    { value: 'french', label: 'French', flag: '🇫🇷' },
+    { value: 'german', label: 'German', flag: '🇩🇪' },
+    { value: 'japanese', label: 'Japanese', flag: '🇯🇵' },
+    { value: 'chinese', label: 'Chinese', flag: '🇨🇳' }
+  ];
+  
+  // Mock frequently asked questions
+  const faqs = [
+    {
+      question: "How is this product delivered?",
+      answer: "This is a digital product delivered instantly to your email after purchase. You'll also have access to download it from your account dashboard."
+    },
+    {
+      question: "Do I get lifetime access?",
+      answer: "Yes! Once purchased, you get lifetime access to the product and all future updates."
+    },
+    {
+      question: "Is there a money-back guarantee?",
+      answer: "Yes, we offer a 30-day satisfaction guarantee. If you're not happy with the product, contact us for a full refund."
+    },
+    {
+      question: "Can I use this on multiple devices?",
+      answer: "Yes, you can access and download your purchase on any device. We have no device limits."
+    }
+  ];
+  
+  // Mock reviews
+  const reviews = [
+    {
+      id: 1,
+      name: "Sarah Johnson",
+      avatar: "https://randomuser.me/api/portraits/women/44.jpg",
+      rating: 5,
+      date: "2023-09-12",
+      review: "This course completely changed my approach to trading. The Smart Money Concepts taught here have helped me identify high-probability setups I was missing before."
+    },
+    {
+      id: 2,
+      name: "Michael Chen",
+      avatar: "https://randomuser.me/api/portraits/men/52.jpg",
+      rating: 5,
+      date: "2023-08-28",
+      review: "The content is incredibly well structured and easy to follow. I've been trading for years but these insights have taken my analysis to a new level."
+    },
+    {
+      id: 3,
+      name: "Emma Rodriguez",
+      avatar: "https://randomuser.me/api/portraits/women/63.jpg",
+      rating: 4,
+      date: "2023-10-05",
+      review: "Very comprehensive material on institutional order flow. Would have given 5 stars but would like to see more practical examples."
+    }
+  ];
+  
+  // Animation variants
+  const fadeIn = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+  };
+  
+  if (loading) {
     return (
-      <div>
-        <Navbar />
-        <div className="content-container py-12">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
-            <p className="mb-6">The product you are looking for does not exist.</p>
-            <Link to="/products">
-              <Button>Back to Products</Button>
-            </Link>
-          </div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-primary border-r-transparent"></div>
+          <p className="mt-4 text-muted-foreground">Loading product information...</p>
         </div>
-        <Footer />
       </div>
     );
   }
   
-  const handleAddToCart = () => {
-    dispatch({
-      type: 'ADD_TO_CART',
-      payload: {
-        id: product.id,
-        quantity: quantity,
-        variantId: selectedVariant || undefined
-      }
-    });
-    
-    toast({
-      title: "Added to cart",
-      description: `${product.title} has been added to your cart.`,
-    });
-  };
-  
-  const containerAnimation = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-  
-  const itemAnimation = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.6 } }
-  };
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center max-w-md p-6">
+          <AlertTriangle className="h-12 w-12 mx-auto text-yellow-500 mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Product Not Found</h1>
+          <p className="text-muted-foreground mb-6">
+            We couldn't find the product you're looking for. It may have been removed or the URL might be incorrect.
+          </p>
+          <Button asChild>
+            <Link to="/products">Browse All Products</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
   
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       <Navbar />
       
-      <main className="flex-1 bg-gradient-to-b from-purple-50 to-white dark:from-gray-900 dark:to-gray-800">
-        <div className="content-container py-12">
-          <Link to="/products" className="inline-flex items-center mb-8 text-primary hover:underline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Products
-          </Link>
+      <main className="flex-1 py-10">
+        <div className="content-container">
+          <Button variant="ghost" className="mb-6" asChild>
+            <Link to="/products" className="flex items-center text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Products
+            </Link>
+          </Button>
           
-          <motion.div 
-            variants={containerAnimation}
-            initial="hidden"
-            animate="show"
-            className="grid grid-cols-1 lg:grid-cols-2 gap-12"
-          >
-            {/* Product Image Section */}
-            <motion.div variants={itemAnimation} className="relative">
-              <div className="rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-md aspect-[4/3] flex items-center justify-center">
-                <img 
-                  src={product.image || '/placeholder.svg'} 
-                  alt={product.title} 
-                  className="w-full h-auto object-cover" 
-                />
-                <div className="absolute top-4 right-4 bg-primary text-white text-sm font-medium py-1 px-3 rounded-full">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
+            {/* Product Image and Details - 3 cols */}
+            <motion.div 
+              initial="hidden"
+              animate="visible"
+              variants={fadeIn}
+              className="lg:col-span-3 space-y-8"
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-md relative glass-morphism">
+                <div className="aspect-video w-full overflow-hidden">
+                  <img 
+                    src={product.image || '/placeholder.svg'} 
+                    alt={product.title}
+                    className="w-full h-full object-cover transition-transform hover:scale-105 duration-700"
+                  />
+                </div>
+                
+                <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-sm font-medium">
                   Digital Product
                 </div>
               </div>
               
-              <div className="mt-8 glass-card p-4">
-                <div className="flex items-center mb-4">
-                  <Download className="h-5 w-5 text-primary mr-2" />
-                  <h3 className="font-medium">Digital Delivery</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md space-y-6 glass-morphism">
+                <div>
+                  <h1 className="text-3xl font-bold mb-4">{product.title}</h1>
+                  
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+                      ))}
+                    </div>
+                    <span className="text-muted-foreground">(32 reviews)</span>
+                    <button 
+                      onClick={scrollToReviews}
+                      className="text-primary underline text-sm ml-2"
+                    >
+                      See all reviews
+                    </button>
+                  </div>
+                  
+                  <div className="prose dark:prose-invert max-w-none">
+                    <p className="text-lg mb-6 leading-relaxed">
+                      {product.description}
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
+                      <div className="flex items-start">
+                        <div className="bg-primary/10 p-2 rounded-full mt-0.5">
+                          <Download className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="font-medium">Instant Digital Delivery</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Immediate access after purchase
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start">
+                        <div className="bg-primary/10 p-2 rounded-full mt-0.5">
+                          <BookOpen className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="font-medium">Comprehensive Material</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Detailed guide with examples
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start">
+                        <div className="bg-primary/10 p-2 rounded-full mt-0.5">
+                          <Globe className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="font-medium">Multiple Languages</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Available in 6 languages
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start">
+                        <div className="bg-primary/10 p-2 rounded-full mt-0.5">
+                          <Users className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="font-medium">Community Support</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Join our Discord and Telegram
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <ul className="space-y-2">
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                    <span className="text-sm">Instant delivery to your email</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                    <span className="text-sm">Lifetime access to all updates</span>
-                  </li>
-                  <li className="flex items-start">
-                    <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                    <span className="text-sm">Access on all devices</span>
-                  </li>
-                </ul>
+                
+                <div className="space-y-4">
+                  <h2 className="text-xl font-bold">What You'll Learn</h2>
+                  
+                  <ul className="space-y-3">
+                    {product.features?.map((feature: string, index: number) => (
+                      <li key={index} className="flex items-start">
+                        <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                    
+                    {!product.features || product.features.length === 0 ? (
+                      <>
+                        <li className="flex items-start">
+                          <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                          <span>Understand market structure and how to identify it</span>
+                        </li>
+                        <li className="flex items-start">
+                          <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                          <span>Master the art of identifying smart money levels</span>
+                        </li>
+                        <li className="flex items-start">
+                          <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                          <span>Learn to spot and trade with Order Blocks</span>
+                        </li>
+                        <li className="flex items-start">
+                          <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                          <span>Identify liquidity pools and how banks target them</span>
+                        </li>
+                        <li className="flex items-start">
+                          <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                          <span>Develop an institutional trader's mindset</span>
+                        </li>
+                      </>
+                    ) : null}
+                  </ul>
+                </div>
+              </div>
+              
+              {/* FAQs */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md glass-morphism">
+                <h2 className="text-xl font-bold mb-4">Frequently Asked Questions</h2>
+                
+                <Accordion type="single" collapsible className="w-full">
+                  {faqs.map((faq, index) => (
+                    <AccordionItem key={index} value={`item-${index}`}>
+                      <AccordionTrigger className="text-left font-medium">
+                        {faq.question}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        {faq.answer}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+              
+              {/* Reviews */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md glass-morphism" ref={reviewsRef}>
+                <h2 className="text-xl font-bold mb-4">Customer Reviews</h2>
+                
+                <div className="space-y-6">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border-b pb-6 last:border-b-0 last:pb-0">
+                      <div className="flex items-start">
+                        <img 
+                          src={review.avatar} 
+                          alt={review.name} 
+                          className="w-10 h-10 rounded-full mr-3"
+                        />
+                        <div>
+                          <h4 className="font-medium">{review.name}</h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="flex">
+                              {[...Array(5)].map((_, i) => (
+                                <Star 
+                                  key={i} 
+                                  className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
+                                />
+                              ))}
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {new Date(review.date).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm">{review.review}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </motion.div>
             
-            {/* Product Details Section */}
-            <motion.div variants={itemAnimation} className="flex flex-col">
-              <div>
-                <div className="flex items-center mb-2">
-                  <div className="flex text-amber-400 mr-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-current" />
-                    ))}
+            {/* Purchase Box - 2 cols */}
+            <motion.div 
+              initial="hidden"
+              animate="visible"
+              variants={fadeIn}
+              className="lg:col-span-2"
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md sticky top-6 glass-morphism">
+                <div className="space-y-6">
+                  <div className="flex justify-between items-baseline">
+                    <div className="text-3xl font-bold">{formatCurrency(product.price)}</div>
+                    <div className="text-sm text-muted-foreground">Digital Product</div>
                   </div>
-                  <span className="text-sm text-muted-foreground">(5.0 from 36 reviews)</span>
-                </div>
-                
-                <h1 className="text-3xl md:text-4xl font-bold font-display mb-4">{product.title}</h1>
-                
-                <div className="flex items-center mb-6">
-                  <div className="text-2xl font-bold text-primary">
-                    ${product.price.toFixed(2)}
-                  </div>
-                  <div className="ml-3 text-lg text-muted-foreground line-through">
-                    ${(product.price * 2).toFixed(2)}
-                  </div>
-                  <div className="ml-3 text-sm font-medium text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded">
-                    50% OFF
-                  </div>
-                </div>
-                
-                <div className="prose max-w-none dark:prose-invert mb-8">
-                  <p className="text-lg">{product.description}</p>
-                </div>
-                
-                {/* Language Variants with shadcn Select */}
-                <div className="mb-8">
-                  <h3 className="text-lg font-medium mb-3 flex items-center">
-                    <Languages className="mr-2 h-5 w-5 text-primary" />
-                    Available Languages
-                  </h3>
                   
-                  <Select value={selectedVariant} onValueChange={setSelectedVariant}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {languageVariants.map((variant) => (
-                          variant.available ? (
-                            <SelectItem key={variant.id} value={variant.id}>
-                              {variant.name}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label htmlFor="language" className="block text-sm font-medium">
+                        Select Language
+                      </label>
+                      <Select
+                        value={selectedLanguage}
+                        onValueChange={setSelectedLanguage}
+                      >
+                        <SelectTrigger id="language" className="w-full">
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {languages.map((language) => (
+                            <SelectItem key={language.value} value={language.value} className="flex items-center">
+                              <span className="mr-2">{language.flag}</span>
+                              <span>{language.label}</span>
                             </SelectItem>
-                          ) : (
-                            <SelectItem key={variant.id} value={variant.id} disabled>
-                              {variant.name} (Coming Soon)
-                            </SelectItem>
-                          )
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label htmlFor="quantity" className="block text-sm font-medium">
+                        Quantity
+                      </label>
+                      <select
+                        id="quantity"
+                        value={quantity}
+                        onChange={(e) => setQuantity(Number(e.target.value))}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        {[1, 2, 3, 4, 5].map((num) => (
+                          <option key={num} value={num}>
+                            {num}
+                          </option>
                         ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <Separator className="my-6" />
-                
-                {/* Add to Cart */}
-                <div className="space-y-6 mb-8">
+                      </select>
+                    </div>
+                  </div>
+                  
                   <Button 
                     size="lg" 
-                    className="w-full py-6 text-lg" 
+                    className="w-full"
                     onClick={handleAddToCart}
                   >
                     <ShoppingCart className="mr-2 h-5 w-5" />
                     Add to Cart
                   </Button>
                   
-                  <div className="flex items-center justify-center text-sm text-muted-foreground">
-                    <Shield className="mr-2 h-4 w-4" />
-                    <span>Secure checkout with Stripe</span>
+                  <div className="border-t pt-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Zap className="h-4 w-4 text-primary" />
+                      <span>Instant digital delivery</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm mt-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      <span>Secure payment & 30-day guarantee</span>
+                    </div>
                   </div>
-                </div>
-              </div>
-              
-              {/* Key Benefits */}
-              <div className="glass-card p-6 mt-auto">
-                <h3 className="font-medium mb-4">Why Choose This Resource:</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-start">
-                    <Zap className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
-                    <span className="text-sm">Instant application to your trading</span>
-                  </div>
-                  <div className="flex items-start">
-                    <Award className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
-                    <span className="text-sm">Created by professional traders</span>
-                  </div>
-                  <div className="flex items-start">
-                    <Clock className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
-                    <span className="text-sm">24/7 support available</span>
-                  </div>
-                  <div className="flex items-start">
-                    <Shield className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
-                    <span className="text-sm">Satisfaction guaranteed</span>
+                  
+                  <div className="bg-primary/5 p-4 rounded-lg mt-4 border border-primary/10">
+                    <h3 className="font-bold text-sm">🔥 LIMITED TIME OFFER</h3>
+                    <p className="text-sm mt-1">
+                      50% discount applied automatically at checkout. Hurry, offer ends soon!
+                    </p>
                   </div>
                 </div>
               </div>
             </motion.div>
-          </motion.div>
-          
-          {/* Product Tabs */}
-          <div className="mt-16">
-            <Tabs defaultValue="features">
-              <TabsList className="w-full justify-start">
-                <TabsTrigger value="features">Features</TabsTrigger>
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="reviews">Reviews</TabsTrigger>
-                <TabsTrigger value="faq">FAQ</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="features" className="mt-6">
-                <div className="glass-card p-6">
-                  <h3 className="text-xl font-bold mb-4">What's Included:</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {product.features?.map((feature, index) => (
-                      <div key={index} className="flex items-start">
-                        <Check className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
-                        <span>{feature}</span>
-                      </div>
-                    )) || (
-                      <div className="col-span-2">
-                        <p>No specific features listed for this product.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="details" className="mt-6">
-                <div className="glass-card p-6">
-                  <h3 className="text-xl font-bold mb-4">Product Details:</h3>
-                  <div className="space-y-4">
-                    <p>
-                      This comprehensive digital resource is designed to help traders master the intricacies of market structure and price action. Whether you're a beginner or experienced trader, this material offers valuable insights into how institutional traders operate in the markets.
-                    </p>
-                    <p>
-                      All materials are delivered digitally, allowing for instant access across all your devices. Updates are provided free of charge for the lifetime of the product.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-                      <div>
-                        <h4 className="font-medium text-sm">Format</h4>
-                        <p className="text-muted-foreground">Digital Download (PDF, Video)</p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm">Pages</h4>
-                        <p className="text-muted-foreground">146 pages of content</p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm">Last Updated</h4>
-                        <p className="text-muted-foreground">January 2023</p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm">Languages</h4>
-                        <p className="text-muted-foreground">English, Spanish, German</p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm">Support</h4>
-                        <p className="text-muted-foreground">Email, Discord Community</p>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-sm">Access</h4>
-                        <p className="text-muted-foreground">Lifetime (including updates)</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="reviews" className="mt-6">
-                <div className="glass-card p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold">Customer Reviews:</h3>
-                    <Button>Write a Review</Button>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    <div className="border-b pb-6">
-                      <div className="flex items-center mb-2">
-                        <div className="flex text-amber-400 mr-2">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-4 h-4 fill-current" />
-                          ))}
-                        </div>
-                        <span className="font-medium">Incredible Resource</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground mb-3">
-                        By Alex Morgan • August 15, 2023
-                      </div>
-                      <p>
-                        This is exactly what I needed to take my trading to the next level. The way market structure is explained has helped me identify high probability setups I was missing before. Highly recommend!
-                      </p>
-                    </div>
-                    
-                    <div className="border-b pb-6">
-                      <div className="flex items-center mb-2">
-                        <div className="flex text-amber-400 mr-2">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-4 h-4 fill-current" />
-                          ))}
-                        </div>
-                        <span className="font-medium">Game Changer</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground mb-3">
-                        By Sarah Johnson • July 23, 2023
-                      </div>
-                      <p>
-                        I've been trading for years, but the concepts in this material have completely changed my approach. The section on order blocks and breaker blocks alone was worth the price. I'm now consistently finding better entries and exits.
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <div className="flex items-center mb-2">
-                        <div className="flex text-amber-400 mr-2">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-4 h-4 fill-current" />
-                          ))}
-                        </div>
-                        <span className="font-medium">Worth Every Penny</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground mb-3">
-                        By Michael Chen • June 10, 2023
-                      </div>
-                      <p>
-                        The content is presented in a clear, concise manner that's easy to understand and implement. I particularly appreciated the examples using real market conditions. After applying these strategies, my win rate has improved significantly.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="faq" className="mt-6">
-                <div className="glass-card p-6">
-                  <h3 className="text-xl font-bold mb-4">Frequently Asked Questions:</h3>
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="font-medium mb-2">Is this suitable for beginners?</h4>
-                      <p className="text-muted-foreground">
-                        While some basic trading knowledge is helpful, we've designed this material to be accessible to traders of all levels. Beginners will find a solid foundation, while experienced traders will discover advanced techniques to enhance their strategies.
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h4 className="font-medium mb-2">How will I receive the product after purchase?</h4>
-                      <p className="text-muted-foreground">
-                        Immediately after your purchase is confirmed, you'll receive an email with download instructions and access links. You can access the material on any device with an internet connection.
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h4 className="font-medium mb-2">Do you offer refunds?</h4>
-                      <p className="text-muted-foreground">
-                        Due to the digital nature of this product, we generally don't offer refunds. However, if you're experiencing technical issues or have concerns about the content, please contact our support team, and we'll be happy to assist you.
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <h4 className="font-medium mb-2">How often is the content updated?</h4>
-                      <p className="text-muted-foreground">
-                        We typically update our materials quarterly to ensure they reflect current market conditions and trading strategies. As a customer, you'll receive lifetime access to all updates at no additional cost.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-          
-          {/* Related Products */}
-          <div className="mt-16">
-            <h2 className="text-2xl font-bold mb-6">You Might Also Like</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {state.products.filter(p => p.id !== product.id).slice(0, 4).map(relatedProduct => (
-                <Link 
-                  key={relatedProduct.id}
-                  to={`/product/${relatedProduct.id}`}
-                  className="glass-card overflow-hidden flex flex-col transition-all hover:shadow-md"
-                >
-                  <div className="aspect-[4/3] overflow-hidden">
-                    <img 
-                      src={relatedProduct.image || '/placeholder.svg'} 
-                      alt={relatedProduct.title} 
-                      className="w-full h-full object-cover transition-transform hover:scale-105"
-                    />
-                  </div>
-                  <div className="p-4 flex flex-col flex-1">
-                    <h3 className="font-medium mb-1 line-clamp-1">{relatedProduct.title}</h3>
-                    <div className="flex items-center mt-auto">
-                      <div className="font-bold text-primary">${relatedProduct.price.toFixed(2)}</div>
-                      <div className="ml-2 text-sm text-muted-foreground line-through">${(relatedProduct.price * 2).toFixed(2)}</div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
           </div>
         </div>
       </main>
