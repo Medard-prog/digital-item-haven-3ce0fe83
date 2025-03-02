@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useReducer } from 'react';
 
 // Types
-type Product = {
+export type Product = {
   id: string;
   title: string;
   price: number;
@@ -12,9 +12,10 @@ type Product = {
   features?: string[];
 };
 
-type CartItem = {
+export type CartItem = {
   id: string;
   quantity: number;
+  product?: Product;
 };
 
 type State = {
@@ -32,6 +33,11 @@ type Action =
   | { type: 'REMOVE_FROM_CART'; payload: { id: string } }
   | { type: 'UPDATE_CART_QUANTITY'; payload: { id: string; quantity: number } }
   | { type: 'CLEAR_CART' };
+
+// Helper function to format currency
+export const formatCurrency = (amount: number): string => {
+  return `$${amount.toFixed(2)}`;
+};
 
 // Sample products
 const initialProducts: Product[] = [
@@ -227,10 +233,12 @@ const reducer = (state: State, action: Action): State => {
 };
 
 // Create context
-const StoreContext = createContext<{
+type StoreContextType = {
   state: State;
   dispatch: React.Dispatch<Action>;
-}>({
+};
+
+const StoreContext = createContext<StoreContextType>({
   state: initialState,
   dispatch: () => null
 });
