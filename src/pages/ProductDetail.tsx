@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -17,7 +16,7 @@ import {
   Check,
   Star, 
   Shield, 
-  Lightning, 
+  Zap,
   Award, 
   Clock, 
   Languages
@@ -69,8 +68,7 @@ const ProductDetail = () => {
       type: 'ADD_TO_CART',
       payload: {
         id: product.id,
-        quantity: quantity,
-        variantId: selectedVariant || undefined
+        quantity: quantity
       }
     });
     
@@ -233,7 +231,7 @@ const ProductDetail = () => {
                 <h3 className="font-medium mb-4">Why Choose This Resource:</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-start">
-                    <Lightning className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
+                    <Zap className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
                     <span className="text-sm">Instant application to your trading</span>
                   </div>
                   <div className="flex items-start">

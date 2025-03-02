@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useReducer } from 'react';
 
 // Types
@@ -31,7 +32,7 @@ type Action =
   | { type: 'ADD_PRODUCT'; payload: Product }
   | { type: 'UPDATE_PRODUCT'; payload: Product }
   | { type: 'DELETE_PRODUCT'; payload: string }
-  | { type: 'ADD_TO_CART'; payload: { id: string; quantity: number } }
+  | { type: 'ADD_TO_CART'; payload: { id: string; quantity: number; variantId?: string } }
   | { type: 'REMOVE_FROM_CART'; payload: { id: string } }
   | { type: 'UPDATE_CART_QUANTITY'; payload: { id: string; quantity: number } }
   | { type: 'CLEAR_CART' };
