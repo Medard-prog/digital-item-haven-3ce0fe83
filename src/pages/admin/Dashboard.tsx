@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,8 +47,11 @@ const AdminDashboard = () => {
           profileMap.set(profile.id, profile.email);
         });
         
-        // Calculate total revenue
-        const totalRevenue = orders?.reduce((sum, order) => sum + (parseFloat(order.total) || 0), 0) || 0;
+        // Calculate total revenue - ensuring we convert to string before parsing to handle null/undefined
+        const totalRevenue = orders?.reduce((sum, order) => {
+          const orderTotal = typeof order.total === 'string' ? parseFloat(order.total) : (order.total || 0);
+          return sum + orderTotal;
+        }, 0) || 0;
         
         // Get top products (mock data for now, would need order_items join in real implementation)
         const topProducts = products?.slice(0, 5).map(product => ({
@@ -58,14 +60,18 @@ const AdminDashboard = () => {
           sales: Math.floor(Math.random() * 50) + 1 // Mock sales data
         })) || [];
         
-        // Recent orders - use profileMap to get email
-        const recentOrders = orders?.slice(0, 5).map(order => ({
-          id: order.id,
-          customer: profileMap.get(order.user_id) || 'Unknown',
-          amount: parseFloat(order.total || '0').toFixed(2),
-          status: order.status,
-          date: new Date(order.created_at).toLocaleDateString()
-        })) || [];
+        // Recent orders - use profileMap to get email and ensure amount is a string
+        const recentOrders = orders?.slice(0, 5).map(order => {
+          // Safely parse the order total to a number, then convert to fixed string
+          const orderTotal = typeof order.total === 'string' ? parseFloat(order.total) : (order.total || 0);
+          return {
+            id: order.id,
+            customer: profileMap.get(order.user_id) || 'Unknown',
+            amount: orderTotal.toFixed(2),
+            status: order.status,
+            date: new Date(order.created_at).toLocaleDateString()
+          };
+        }) || [];
         
         setStats({
           totalCustomers: customerCount || 0,
