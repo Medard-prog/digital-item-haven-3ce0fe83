@@ -117,34 +117,45 @@ const OrdersManager = () => {
         setTotalPages(Math.ceil(count / pageSize));
       }
       
-      // Then fetch the orders with user info
-      const { data, error } = await supabase
+      // Fetch orders first
+      const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
-        .select(`
-          *,
-          profiles:user_id (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1);
       
-      if (error) throw error;
+      if (ordersError) throw ordersError;
       
-      // Transform the data to match our Order type
-      const formattedOrders: Order[] = data.map(order => ({
-        id: order.id,
-        created_at: order.created_at,
-        total: order.total,
-        status: order.status,
-        customer: order.profiles ? {
-          first_name: order.profiles.first_name,
-          last_name: order.profiles.last_name,
-          email: order.profiles.email
-        } : undefined
-      }));
+      // For each order, separately fetch the user profile if user_id exists
+      const formattedOrders: Order[] = await Promise.all(
+        ordersData.map(async (order) => {
+          let customer = undefined;
+          
+          if (order.user_id) {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, email')
+              .eq('id', order.user_id)
+              .single();
+            
+            if (!profileError && profileData) {
+              customer = {
+                first_name: profileData.first_name,
+                last_name: profileData.last_name,
+                email: profileData.email
+              };
+            }
+          }
+          
+          return {
+            id: order.id,
+            created_at: order.created_at,
+            total: order.total,
+            status: order.status,
+            customer
+          };
+        })
+      );
       
       setOrders(formattedOrders);
     } catch (error) {
@@ -242,7 +253,6 @@ const OrdersManager = () => {
               </TableBody>
             </Table>
             
-            {/* Pagination controls */}
             {totalPages > 1 && (
               <div className="flex justify-between items-center mt-4">
                 <Button 
