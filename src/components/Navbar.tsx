@@ -65,11 +65,11 @@ const Navbar = () => {
     : 'U';
   
   const userMenuItems = [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/profile", label: "Profile" },
-    { href: "/purchases", label: "Purchases" },
-    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : []),
-    { href: "#", label: "Sign out", onClick: handleSignOut },
+    { href: "/dashboard", label: "Dashboard", icon: User },
+    { href: "/profile", label: "Profile", icon: User },
+    { href: "/purchases", label: "Purchases", icon: ShoppingBag },
+    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: GanttChartSquare }] : []),
+    { href: "#", label: "Sign out", onClick: handleSignOut, icon: LogOut },
   ];
   
   return (
