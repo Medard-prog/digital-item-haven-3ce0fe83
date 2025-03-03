@@ -4,49 +4,92 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading, isAdmin, refreshSession } = useAuth();
+  const { user, isLoading } = useAuth();
   const [localLoading, setLocalLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Use a timeout to stop waiting for isLoading if it takes too long
+  // Direct check of admin status from database
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    const checkAdmin = async () => {
+    const checkAdminStatus = async () => {
       try {
-        // Always refresh session when mounting an admin route
-        await refreshSession();
+        if (!user?.id) {
+          setIsAdmin(false);
+          setLocalLoading(false);
+          return;
+        }
+
+        console.log("AdminRoute - Checking admin status for user ID:", user.id);
+        
+        // Directly query the profiles table
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) {
+          console.error("Error checking admin status:", error);
+          setError("Failed to verify admin status. Please try again.");
+          setIsAdmin(false);
+          
+          // In development mode, allow access
+          if (process.env.NODE_ENV === 'development') {
+            console.log("Development mode: setting admin to true despite error");
+            setIsAdmin(true);
+          }
+        } else {
+          console.log("Admin check result:", data);
+          setIsAdmin(!!data?.is_admin);
+        }
+        
         setLocalLoading(false);
       } catch (err) {
-        console.error("Error checking admin status:", err);
-        setError("Failed to verify admin status. Please try again.");
+        console.error("Exception in admin check:", err);
+        setError("An unexpected error occurred. Please try again.");
+        setIsAdmin(false);
         setLocalLoading(false);
+        
+        // In development mode, allow access
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Development mode: setting admin to true despite error");
+          setIsAdmin(true);
+        }
       }
     };
 
-    checkAdmin();
-    
-    if (isLoading) {
-      timeoutId = setTimeout(() => {
-        console.log("Force ending admin check loading state after timeout");
-        setLocalLoading(false);
-      }, 1000); // 1 second timeout
+    if (!isLoading) {
+      checkAdminStatus();
     }
     
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [isLoading, refreshSession]);
+    // Add a timeout to prevent infinite loading states
+    const timeoutId = setTimeout(() => {
+      if (localLoading) {
+        console.log("Force ending admin check loading state after timeout");
+        setLocalLoading(false);
+        
+        // In development mode, allow access
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Development mode: setting admin to true after timeout");
+          setIsAdmin(true);
+        }
+      }
+    }, 2000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [user, isLoading]);
 
-  // Debug console log
+  // Debug logs
   console.log("AdminRoute - user:", user ? "exists" : "null", "isAdmin:", isAdmin, "isLoading:", isLoading, "localLoading:", localLoading);
 
   // Development mode always gets access
   const isDevelopment = process.env.NODE_ENV === 'development';
   
-  if (localLoading && isLoading) {
+  if (localLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
@@ -57,6 +100,8 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (error) {
+    toast.error("Admin access verification failed");
+    
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-md text-center">
@@ -70,7 +115,8 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   if ((!user || !isAdmin) && !isDevelopment) {
-    console.log("AdminRoute - Redirecting to dashboard - Not admin");
+    console.log("AdminRoute - Redirecting to dashboard - Not admin. User:", user?.id, "isAdmin:", isAdmin);
+    toast.error("You don't have admin privileges to access this page");
     return <Navigate to="/dashboard" replace />;
   }
 

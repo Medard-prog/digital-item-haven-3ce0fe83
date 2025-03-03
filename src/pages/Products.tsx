@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -18,7 +18,7 @@ import {
   AlertTriangle 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Sheet,
@@ -30,6 +30,7 @@ import {
   SheetClose,
 } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useQuery } from '@tanstack/react-query';
 
 interface Product {
   id: string;
@@ -43,167 +44,110 @@ interface Product {
   variants?: Array<{id: string; name: string; price?: number}>;
 }
 
-const Products = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [retryCount, setRetryCount] = useState(0);
+const fetchProductsData = async () => {
+  console.log("Fetching products from database...");
   
-  const fetchProducts = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      console.log(`Fetching products from database... (attempt ${retryCount + 1})`);
+  try {
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('*');
+
+    if (productsError) {
+      console.error('Error fetching products:', productsError);
+      throw new Error(`Failed to fetch products: ${productsError.message}`);
+    }
+
+    if (!productsData || productsData.length === 0) {
+      console.log('No products found in the database');
+      return {
+        products: [],
+        categories: []
+      };
+    }
+
+    const [featuresResponse, variantsResponse, categoriesResponse, categoryMapResponse] = await Promise.all([
+      supabase.from('product_features').select('*'),
+      supabase.from('product_variants').select('*'),
+      supabase.from('product_categories').select('*'),
+      supabase.from('product_category_map').select('*')
+    ]);
+
+    if (featuresResponse.error) console.error('Error fetching features:', featuresResponse.error);
+    if (variantsResponse.error) console.error('Error fetching variants:', variantsResponse.error);
+    if (categoriesResponse.error) console.error('Error fetching categories:', categoriesResponse.error);
+    if (categoryMapResponse.error) console.error('Error fetching category mappings:', categoryMapResponse.error);
+
+    const enhancedProducts = productsData.map(product => {
+      const productFeatures = featuresResponse.data
+        ? featuresResponse.data.filter(f => f.product_id === product.id).map(f => f.feature)
+        : [];
       
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('*');
-
-      if (productsError) {
-        console.error('Error fetching products:', productsError);
-        throw new Error(`Failed to fetch products: ${productsError.message}`);
-      }
-
-      console.log(`Products fetched successfully: ${productsData?.length || 0}`);
+      const productVariants = variantsResponse.data
+        ? variantsResponse.data.filter(v => v.product_id === product.id).map(v => ({
+            id: v.id,
+            name: v.name,
+            price: v.price
+          }))
+        : [];
       
-      if (!productsData || productsData.length === 0) {
-        console.log('No products found in the database');
-        setProducts([]);
-        setFilteredProducts([]);
-        setCategories([]);
-        setIsLoading(false);
-        return;
-      }
-
-      const basicProducts = productsData.map(product => ({
+      const productCategoryIds = categoryMapResponse.data
+        ? categoryMapResponse.data.filter(cm => cm.product_id === product.id).map(cm => cm.category_id)
+        : [];
+      
+      const productCategories = categoriesResponse.data
+        ? productCategoryIds.map(id => {
+            const category = categoriesResponse.data.find(c => c.id === id);
+            return category ? category.name : '';
+          }).filter(name => name !== '')
+        : [];
+      
+      return {
         id: product.id,
         title: product.title,
         description: product.description,
         price: product.price,
         image: product.image_url,
         featured: product.featured,
-        features: [],
-        categories: [],
-        variants: []
-      }));
+        features: productFeatures,
+        categories: productCategories,
+        variants: productVariants
+      };
+    });
 
-      console.log('Basic products processed, fetching features...');
-      
-      const { data: featuresData, error: featuresError } = await supabase
-        .from('product_features')
-        .select('*');
-        
-      if (featuresError) {
-        console.error('Error fetching features:', featuresError);
-      } else {
-        console.log(`Features fetched: ${featuresData?.length || 0}`);
-      }
-        
-      const { data: variantsData, error: variantsError } = await supabase
-        .from('product_variants')
-        .select('*');
-        
-      if (variantsError) {
-        console.error('Error fetching variants:', variantsError);
-      } else {
-        console.log(`Variants fetched: ${variantsData?.length || 0}`);
-      }
-      
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('product_categories')
-        .select('*');
-      
-      if (categoriesError) {
-        console.error('Error fetching categories:', categoriesError);
-      } else {
-        console.log(`Categories fetched: ${categoriesData?.length || 0}`);
-      }
-      
-      const { data: categoryMapData, error: categoryMapError } = await supabase
-        .from('product_category_map')
-        .select('*');
-      
-      if (categoryMapError) {
-        console.error('Error fetching category mappings:', categoryMapError);
-      } else {
-        console.log(`Category mappings fetched: ${categoryMapData?.length || 0}`);
-      }
+    const allCategories = Array.from(new Set(
+      enhancedProducts.flatMap(product => product.categories || [])
+    )).sort();
 
-      const enhancedProducts = basicProducts.map(product => {
-        const productFeatures = featuresData
-          ? featuresData.filter(f => f.product_id === product.id).map(f => f.feature)
-          : [];
-        
-        const productVariants = variantsData
-          ? variantsData.filter(v => v.product_id === product.id).map(v => ({
-              id: v.id,
-              name: v.name,
-              price: v.price
-            }))
-          : [];
-        
-        const productCategoryIds = categoryMapData
-          ? categoryMapData.filter(cm => cm.product_id === product.id).map(cm => cm.category_id)
-          : [];
-        
-        const productCategories = categoriesData
-          ? productCategoryIds.map(id => {
-              const category = categoriesData.find(c => c.id === id);
-              return category ? category.name : '';
-            }).filter(name => name !== '')
-          : [];
-        
-        return {
-          ...product,
-          features: productFeatures,
-          variants: productVariants,
-          categories: productCategories
-        };
-      });
+    console.log(`Fetched ${enhancedProducts.length} products with ${allCategories.length} categories`);
+    
+    return {
+      products: enhancedProducts,
+      categories: allCategories
+    };
+  } catch (error) {
+    console.error('Error in fetchProductsData:', error);
+    throw error;
+  }
+};
 
-      console.log(`Enhanced products processed: ${enhancedProducts.length}`);
-
-      const allCategories = Array.from(new Set(
-        enhancedProducts.flatMap(product => product.categories || [])
-      )).sort();
-
-      console.log(`Unique categories found: ${allCategories.length}`);
-      
-      setCategories(allCategories);
-      setProducts(enhancedProducts);
-      setFilteredProducts(enhancedProducts);
-
-    } catch (err: any) {
-      console.error('Error in fetchProducts:', err);
-      setError('Failed to load products. Please try again later.');
-      toast({
-        variant: "destructive",
-        title: "Error loading products",
-        description: err.message
-      });
-      
-      if (retryCount < 3) {
-        console.log(`Retrying in 1 second... (${retryCount + 1}/3)`);
-        setTimeout(() => {
-          setRetryCount(retryCount + 1);
-        }, 1000);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts();
-  }, [retryCount]);
+const Products = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProductsData,
+    staleTime: 60000,
+    retry: 3,
+    retryDelay: 1000,
+  });
+  
+  const products = data?.products || [];
+  const categories = data?.categories || [];
   
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -215,7 +159,7 @@ const Products = () => {
   }, [location.search]);
   
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && products) {
       let filtered = [...products];
       
       if (searchTerm) {
@@ -260,11 +204,7 @@ const Products = () => {
     }
   };
 
-  const handleProductClick = (productId: string) => {
-    navigate(`/product/${productId}`);
-  };
-  
-  if (error && retryCount >= 3) {
+  if (error) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
@@ -272,11 +212,8 @@ const Products = () => {
           <div className="container px-4 mx-auto text-center">
             <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-4">Error Loading Products</h2>
-            <p className="text-muted-foreground mb-6">{error}</p>
-            <Button onClick={() => {
-              setRetryCount(0);
-              fetchProducts();
-            }}>Try Again</Button>
+            <p className="text-muted-foreground mb-6">{(error as Error).message}</p>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
           </div>
         </main>
         <Footer />

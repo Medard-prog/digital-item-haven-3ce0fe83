@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 type User = any; // Using 'any' temporarily as the Supabase user type is complex
 
@@ -22,7 +23,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const { toast } = useToast();
   
   // Track if initial session check has completed
   const [initialCheckDone, setInitialCheckDone] = useState(false);
@@ -103,20 +103,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setIsAdmin(false);
       
-      toast({
-        title: "Signed out successfully",
-      });
+      toast("Signed out successfully");
       
       // Force a page reload to clear any cached state
       window.location.href = '/';
       
     } catch (error: any) {
       console.error("Sign out error caught:", error);
-      toast({
-        variant: "destructive",
-        title: "Sign out failed",
-        description: error.message,
-      });
+      toast.error("Sign out failed: " + error.message);
     } finally {
       setIsLoading(false);
     }
